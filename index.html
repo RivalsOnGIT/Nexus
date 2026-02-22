@@ -303,4 +303,297 @@
       </div>
       <div class="chat-area">
         <div class="chat-header"># general</div>
-        <div clas
+        <div class="chat-area">
+          div class="chat-header"># general</div>
+        <div class="msg">
+          <div class="avatar" style="background:linear-gradient(135deg,#5b6af0,#7c3aed)">A</div>
+          <div class="msg-content">
+            <div class="msg-name" style="color:#8fa0ff">alex_dev</div>
+            <div class="msg-text">hey everyone! just joined this server, loving the vibe 🚀</div>
+          </div>
+        </div>
+        <div class="msg">
+          <div class="avatar" style="background:linear-gradient(135deg,#e040fb,#f06292)">S</div>
+          <div class="msg-content">
+            <div class="msg-name" style="color:#f48fb1">sarah.codes</div>
+            <div class="msg-text">Welcome! We've got game nights every Friday if you're interested 🎮</div>
+          </div>
+        </div>
+        <div class="msg">
+          <div class="avatar" style="background:linear-gradient(135deg,#00bcd4,#26c6da)">M</div>
+          <div class="msg-content">
+            <div class="msg-name" style="color:#4dd0e1">mars.byte</div>
+            <div class="msg-bubble">Just shipped a new feature — check it out!</div>
+          </div>
+        </div>
+        <div class="typing">
+          <div class="typing-dots"><span></span><span></span><span></span></div>
+          <span>luna is typing...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section">
+  <div class="section-label">Why Nexus</div>
+  <div class="section-title">Everything you need<br/>to build a community</div>
+  <p class="section-sub">From text and voice to events and stages — Nexus gives your community the tools to thrive.</p>
+  <div class="features-grid">
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(91,106,240,0.15)">💬</div><h3>Text & Voice Channels</h3><p>Organize conversations into channels by topic. Talk in real-time with crystal clear voice and video.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(224,64,251,0.15)">🔒</div><h3>Granular Permissions</h3><p>Build the community you want with roles, permissions, and moderation tools that scale with you.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(0,188,212,0.15)">🤖</div><h3>Powerful Bots & Apps</h3><p>Extend your server with thousands of apps and bots — from music to moderation to mini-games.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(40,200,64,0.15)">🎙️</div><h3>Stage Channels</h3><p>Host live events, AMAs, and watch parties. Bring your community together for moments that matter.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(254,188,46,0.15)">🧵</div><h3>Threads</h3><p>Keep conversations focused with threads. Dive deep without cluttering the main channel.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(255,95,87,0.15)">📱</div><h3>Cross-Platform</h3><p>Available on iOS, Android, Windows, Mac, and browser. Your community is always in your pocket.</p></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-section">
+  <div class="cta-inner">
+    <h2>Ready to find your people?</h2>
+    <p>Join millions of communities on Nexus. It's free — always.</p>
+    <div class="cta-actions">
+      <button class="btn btn-primary btn-xl" onclick="openModal('signupModal')">Sign Up for Free</button>
+      <button class="btn btn-outline-xl" onclick="openModal('signinModal')">Already have an account?</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <a class="logo" href="#" style="font-size:1.2rem">Nexus</a>
+  <div class="footer-links">
+    <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Blog</a><a href="#">Careers</a><a href="#">Support</a>
+  </div>
+  <p>© 2026 Nexus Inc.</p>
+</footer>
+
+<!-- FIREBASE (module) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDKGqss5jcCNd_AYYohYs-KaSKvZUemX-4",
+    authDomain: "nexus-app-74493.firebaseapp.com",
+    projectId: "nexus-app-74493",
+    storageBucket: "nexus-app-74493.firebasestorage.app",
+    messagingSenderId: "179885556901",
+    appId: "1:179885556901:web:1966afe8102de60d9cb94c",
+    measurementId: "G-LP2YGN7S4B"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let usernameCheckTimeout = null;
+  let currentUsernameValid = false;
+
+  // Update UI based on login state
+  onAuthStateChanged(auth, async (user) => {
+    const navActions = document.getElementById('nav-actions');
+    const heroActions = document.getElementById('hero-actions');
+    const welcomeBanner = document.getElementById('welcome-banner');
+
+    if (user) {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const username = userDoc.exists() ? userDoc.data().username : user.email;
+
+      navActions.innerHTML = `
+        <div class="nav-user">
+          <div class="nav-avatar">${username[0].toUpperCase()}</div>
+          <span class="nav-username">@${username}</span>
+        </div>
+        <button class="btn-danger" onclick="window.handleSignOut()">Sign Out</button>
+      `;
+      heroActions.style.display = 'none';
+      welcomeBanner.style.display = 'block';
+      document.getElementById('welcome-name').textContent = username;
+    } else {
+      navActions.innerHTML = `
+        <button class="btn btn-ghost" onclick="openModal('signinModal')">Sign In</button>
+        <button class="btn btn-primary" onclick="openModal('signupModal')">Get Started</button>
+      `;
+      heroActions.style.display = 'flex';
+      welcomeBanner.style.display = 'none';
+    }
+  });
+
+  // SIGN UP
+  window.handleSignUp = async function () {
+    const email = document.getElementById('signup-email').value.trim();
+    const username = document.getElementById('signup-username').value.trim().toLowerCase();
+    const password = document.getElementById('signup-password').value;
+    const errorBox = document.getElementById('signup-error');
+    const btn = document.getElementById('signup-btn');
+    const spinner = document.getElementById('signup-spinner');
+    const btnText = document.getElementById('signup-btn-text');
+
+    errorBox.classList.remove('visible');
+
+    if (!email || !username || !password) { showError(errorBox, 'Please fill in all fields.'); return; }
+    if (username.length < 3) { showError(errorBox, 'Username must be at least 3 characters.'); return; }
+    if (password.length < 6) { showError(errorBox, 'Password must be at least 6 characters.'); return; }
+    if (!currentUsernameValid) { showError(errorBox, 'Please choose a different username — that one is taken or invalid.'); return; }
+
+    setLoading(btn, spinner, btnText, true, 'Creating account...');
+
+    try {
+      // Final check for username race condition
+      const usernameSnap = await getDoc(doc(db, 'usernames', username));
+      if (usernameSnap.exists()) {
+        showError(errorBox, 'That username was just taken! Please choose another.');
+        setLoading(btn, spinner, btnText, false, 'Create Account');
+        return;
+      }
+
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = cred.user.uid;
+
+      // Save user profile + reserve username
+      await setDoc(doc(db, 'users', uid), { username, email, createdAt: new Date().toISOString() });
+      await setDoc(doc(db, 'usernames', username), { uid });
+
+      closeModal('signupModal');
+      resetForm('signup');
+    } catch (err) {
+      showError(errorBox, friendlyError(err.code));
+    }
+
+    setLoading(btn, spinner, btnText, false, 'Create Account');
+  };
+
+  // SIGN IN
+  window.handleSignIn = async function () {
+    const email = document.getElementById('signin-email').value.trim();
+    const password = document.getElementById('signin-password').value;
+    const errorBox = document.getElementById('signin-error');
+    const btn = document.getElementById('signin-btn');
+    const spinner = document.getElementById('signin-spinner');
+    const btnText = document.getElementById('signin-btn-text');
+
+    errorBox.classList.remove('visible');
+    if (!email || !password) { showError(errorBox, 'Please fill in all fields.'); return; }
+
+    setLoading(btn, spinner, btnText, true, 'Signing in...');
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      closeModal('signinModal');
+      resetForm('signin');
+    } catch (err) {
+      showError(errorBox, friendlyError(err.code));
+    }
+
+    setLoading(btn, spinner, btnText, false, 'Sign In');
+  };
+
+  // SIGN OUT
+  window.handleSignOut = async function () {
+    await signOut(auth);
+  };
+
+  // USERNAME CHECK (live, debounced 500ms)
+  window.checkUsername = function () {
+    const input = document.getElementById('signup-username');
+    const msg = document.getElementById('signup-username-msg');
+    const username = input.value.trim().toLowerCase();
+
+    currentUsernameValid = false;
+    clearTimeout(usernameCheckTimeout);
+    msg.className = 'field-msg';
+    input.className = '';
+
+    if (!username) return;
+
+    if (username.length < 3) {
+      msg.textContent = 'Must be at least 3 characters.';
+      msg.className = 'field-msg error visible';
+      input.className = 'input-error';
+      return;
+    }
+    if (!/^[a-z0-9_.]+$/.test(username)) {
+      msg.textContent = 'Only letters, numbers, underscores, and periods allowed.';
+      msg.className = 'field-msg error visible';
+      input.className = 'input-error';
+      return;
+    }
+
+    msg.textContent = 'Checking availability...';
+    msg.className = 'field-msg visible';
+
+    usernameCheckTimeout = setTimeout(async () => {
+      try {
+        const snap = await getDoc(doc(db, 'usernames', username));
+        if (snap.exists()) {
+          msg.textContent = '✗ Username is unavailable.';
+          msg.className = 'field-msg error visible';
+          input.className = 'input-error';
+          currentUsernameValid = false;
+        } else {
+          msg.textContent = '✓ Username is available!';
+          msg.className = 'field-msg success visible';
+          input.className = 'input-success';
+          currentUsernameValid = true;
+        }
+      } catch {
+        msg.textContent = 'Could not check username. Try again.';
+        msg.className = 'field-msg error visible';
+      }
+    }, 500);
+  };
+
+  // Helpers
+  function showError(box, message) {
+    box.textContent = message;
+    box.classList.add('visible');
+  }
+  function setLoading(btn, spinner, btnText, loading, label) {
+    btn.disabled = loading;
+    spinner.style.display = loading ? 'block' : 'none';
+    btnText.textContent = label;
+  }
+  function friendlyError(code) {
+    const map = {
+      'auth/email-already-in-use': 'That email is already registered. Try signing in instead.',
+      'auth/invalid-email': 'Please enter a valid email address.',
+      'auth/weak-password': 'Password must be at least 6 characters.',
+      'auth/user-not-found': 'No account found with that email.',
+      'auth/wrong-password': 'Incorrect password. Please try again.',
+      'auth/invalid-credential': 'Incorrect email or password. Please try again.',
+      'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
+    };
+    return map[code] || 'Something went wrong. Please try again.';
+  }
+  function resetForm(prefix) {
+    ['email','username','password'].forEach(f => {
+      const el = document.getElementById(`${prefix}-${f}`);
+      if (el) { el.value = ''; el.className = ''; }
+    });
+    const msg = document.getElementById(`${prefix}-username-msg`);
+    if (msg) msg.className = 'field-msg';
+    const err = document.getElementById(`${prefix}-error`);
+    if (err) err.classList.remove('visible');
+    currentUsernameValid = false;
+  }
+</script>
+
+<!-- Non-module JS for modal helpers -->
+<script>
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  function switchModal(from, to) { closeModal(from); setTimeout(() => openModal(to), 200); }
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  });
+</script>
+</body>
+</html>
