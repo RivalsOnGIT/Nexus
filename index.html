@@ -303,8 +303,6 @@
       </div>
       <div class="chat-area">
         <div class="chat-header"># general</div>
-        <div class="chat-area">
-          div class="chat-header"># general</div>
         <div class="msg">
           <div class="avatar" style="background:linear-gradient(135deg,#5b6af0,#7c3aed)">A</div>
           <div class="msg-content">
@@ -459,8 +457,7 @@
       await setDoc(doc(db, 'users', uid), { username, email, createdAt: new Date().toISOString() });
       await setDoc(doc(db, 'usernames', username), { uid });
 
-      closeModal('signupModal');
-      resetForm('signup');
+      window.location.href = 'dashboard.html';
     } catch (err) {
       showError(errorBox, friendlyError(err.code));
     }
@@ -484,8 +481,7 @@
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      closeModal('signinModal');
-      resetForm('signin');
+      window.location.href = 'dashboard.html';
     } catch (err) {
       showError(errorBox, friendlyError(err.code));
     }
