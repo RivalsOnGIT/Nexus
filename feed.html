@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nexus Feed</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+    :root {
+      --bg: #0b0c10;
+      --surface: #13151c;
+      --surface2: #1c1f2b;
+      --surface3: #232638;
+      --accent: #5b6af0;
+      --accent2: #e040fb;
+      --text: #eaedf8;
+      --muted: #7c80a0;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.12);
+      --online: #28c840;
+      --error: #ff5f57;
+      --radius: 14px;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+    /* ── TOAST ── */
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--surface3); border:1px solid var(--border2); border-radius:10px; padding:11px 20px; font-size:0.88rem; font-weight:500; opacity:0; transition:all 0.3s; z-index:9999; white-space:nowrap; max-width:90vw; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    .toast.success { border-color:rgba(40,200,64,0.4); }
+    .toast.error { border-color:rgba(255,95,87,0.4); color:#ff8f87; }
+
+    /* ── LAYOUT ── */
+    .app { display:flex; min-height:100vh; max-width:1200px; margin:0 auto; }
+
+    /* ── LEFT SIDEBAR ── */
+    .left-nav {
+      width: 260px; flex-shrink:0; padding: 20px 12px;
+      position: sticky; top:0; height: 100vh; overflow-y:auto;
+      display: flex; flex-direction: column;
+      border-right: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem;
+      background: linear-gradient(135deg, #5b6af0, #e040fb);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      padding: 4px 12px 20px; text-decoration: none;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 14px; border-radius: 100px; cursor: pointer;
+      font-size: 1rem; font-weight: 500; color: var(--text); text-decoration:none;
+      transition: background 0.15s; border: none; background: none; width: 100%; text-align:left;
+    }
+    .nav-item:hover { background: var(--surface2); }
+    .nav-item.active { font-weight: 700; color: var(--accent); }
+    .nav-item .nav-icon { font-size: 1.3rem; width: 24px; text-align:center; }
+    .nav-spacer { flex:1; }
+    .nav-user-card {
+      display:flex; align-items:center; gap:10px; padding:10px 12px;
+      border-radius:100px; cursor:pointer; transition:background 0.15s;
+      border:none; background:none; width:100%; text-align:left;
+    }
+    .nav-user-card:hover { background: var(--surface2); }
+    .nav-user-av { width:38px; height:38px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem; color:#fff; overflow:hidden; flex-shrink:0; }
+    .nav-user-av img { width:100%; height:100%; object-fit:cover; }
+    .nav-user-name { font-weight:700; font-size:0.88rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .nav-user-handle { font-size:0.78rem; color:var(--muted); }
+    .post-btn {
+      width:100%; margin-top:16px; padding:14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color:#fff; border:none; border-radius:100px;
+      font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:700;
+      cursor:pointer; transition: opacity 0.2s, transform 0.1s;
+    }
+    .post-btn:hover { opacity:0.9; }
+    .post-btn:active { transform:scale(0.97); }
+
+    /* ── CENTER FEED ── */
+    .feed-col { flex:1; border-right:1px solid var(--border); min-width:0; }
+    .feed-header {
+      position:sticky; top:0; z-index:10;
+      background: rgba(11,12,16,0.85); backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--border);
+      padding:0 16px;
+    }
+    .feed-header-tabs { display:flex; }
+    .feed-tab {
+      flex:1; padding:16px 0; text-align:center; font-weight:600; font-size:0.95rem;
+      color:var(--muted); cursor:pointer; border:none; background:none; color:var(--text);
+      border-bottom:2px solid transparent; transition:all 0.15s;
+    }
+    .feed-tab.active { color:var(--text); border-bottom-color:var(--accent); }
+    .feed-tab:hover { background:var(--surface2); }
+
+    /* ── COMPOSE BOX ── */
+    .compose-box {
+      padding:16px; border-bottom:1px solid var(--border);
+      display:flex; gap:12px;
+    }
+    .compose-av { width:42px; height:42px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; color:#fff; overflow:hidden; flex-shrink:0; }
+    .compose-av img { width:100%; height:100%; object-fit:cover; }
+    .compose-right { flex:1; min-width:0; }
+    .compose-textarea {
+      width:100%; background:none; border:none; outline:none; resize:none;
+      color:var(--text); font-family:'DM Sans',sans-serif; font-size:1.1rem;
+      line-height:1.5; padding:8px 0 4px; min-height:60px;
+    }
+    .compose-textarea::placeholder { color:var(--muted); }
+    .compose-media-preview { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+    .compose-media-item { position:relative; border-radius:10px; overflow:hidden; }
+    .compose-media-item img, .compose-media-item video { display:block; height:100px; max-width:160px; object-fit:cover; border-radius:10px; }
+    .compose-media-remove { position:absolute; top:4px; right:4px; width:20px; height:20px; background:rgba(0,0,0,0.7); border:none; color:#fff; border-radius:50%; font-size:0.7rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .compose-divider { height:1px; background:var(--border); margin:4px 0 8px; }
+    .compose-actions { display:flex; align-items:center; justify-content:space-between; }
+    .compose-media-btns { display:flex; gap:4px; }
+    .compose-icon-btn { padding:8px; border:none; background:none; color:var(--accent); cursor:pointer; border-radius:50%; font-size:1.1rem; transition:background 0.15s; }
+    .compose-icon-btn:hover { background:rgba(91,106,240,0.12); }
+    .compose-icon-btn:disabled { opacity:0.35; cursor:default; }
+    .compose-char-count { font-size:0.78rem; color:var(--muted); }
+    .compose-char-count.warn { color:#f0a030; }
+    .compose-char-count.over { color:var(--error); }
+    .compose-submit {
+      padding:8px 18px; background:var(--accent); color:#fff; border:none;
+      border-radius:100px; font-family:'DM Sans',sans-serif; font-weight:700;
+      font-size:0.88rem; cursor:pointer; transition:opacity 0.2s;
+    }
+    .compose-submit:disabled { opacity:0.4; cursor:default; }
+    .compose-submit:hover:not(:disabled) { opacity:0.85; }
+
+    /* ── POST CARD ── */
+    .post-card {
+      padding:14px 16px; border-bottom:1px solid var(--border);
+      transition:background 0.1s; cursor:pointer;
+    }
+    .post-card:hover { background:rgba(255,255,255,0.015); }
+    .post-header { display:flex; gap:12px; margin-bottom:10px; }
+    .post-av { width:42px; height:42px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; color:#fff; overflow:hidden; flex-shrink:0; cursor:pointer; }
+    .post-av img { width:100%; height:100%; object-fit:cover; }
+    .post-meta { flex:1; min-width:0; }
+    .post-name { font-weight:700; font-size:0.92rem; }
+    .post-handle { font-size:0.8rem; color:var(--muted); }
+    .post-time { font-size:0.78rem; color:var(--muted); margin-left:4px; }
+    .post-body { font-size:0.95rem; line-height:1.6; white-space:pre-wrap; word-break:break-word; color:var(--text); padding-left:54px; }
+    .post-media { padding-left:54px; margin-top:10px; }
+    .post-media-grid { display:grid; gap:4px; border-radius:12px; overflow:hidden; }
+    .post-media-grid.n1 { grid-template-columns:1fr; }
+    .post-media-grid.n2 { grid-template-columns:1fr 1fr; }
+    .post-media-grid.n3 { grid-template-columns:1fr 1fr; grid-template-rows:auto auto; }
+    .post-media-grid.n4 { grid-template-columns:1fr 1fr; }
+    .post-media-grid.n3 .media-item:first-child { grid-column:1/-1; }
+    .media-item { position:relative; overflow:hidden; max-height:320px; background:#000; }
+    .media-item img, .media-item video { width:100%; height:100%; object-fit:cover; display:block; max-height:320px; }
+    .media-item video { cursor:default; }
+    .post-actions { display:flex; gap:0; margin-top:12px; padding-left:44px; }
+    .post-action-btn {
+      display:flex; align-items:center; gap:6px; padding:8px 12px;
+      border:none; background:none; color:var(--muted); cursor:pointer;
+      border-radius:100px; font-size:0.82rem; transition:all 0.15s;
+      font-family:'DM Sans',sans-serif;
+    }
+    .post-action-btn:hover.reply-btn  { color:#1d9bf0; background:rgba(29,155,240,0.1); }
+    .post-action-btn:hover.repost-btn { color:#00ba7c; background:rgba(0,186,124,0.1); }
+    .post-action-btn:hover.like-btn   { color:#f91880; background:rgba(249,24,128,0.1); }
+    .post-action-btn.liked { color:#f91880; }
+    .post-action-btn.reposted { color:#00ba7c; }
+    .post-action-btn .act-icon { font-size:1rem; }
+
+    /* ── SINGLE POST VIEW ── */
+    .post-detail-header {
+      display:flex; align-items:center; gap:14px; padding:14px 16px;
+      border-bottom:1px solid var(--border);
+    }
+    .back-btn { border:none; background:none; color:var(--text); cursor:pointer; font-size:1.1rem; padding:8px; border-radius:50%; transition:background 0.15s; }
+    .back-btn:hover { background:var(--surface2); }
+    .post-detail-card { padding:16px; border-bottom:1px solid var(--border); }
+    .post-detail-av-row { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+    .post-detail-av { width:46px; height:46px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.1rem; color:#fff; overflow:hidden; cursor:pointer; }
+    .post-detail-av img { width:100%; height:100%; object-fit:cover; }
+    .post-detail-body { font-size:1.2rem; line-height:1.65; white-space:pre-wrap; word-break:break-word; margin-bottom:14px; }
+    .post-detail-time { font-size:0.82rem; color:var(--muted); margin-bottom:14px; }
+    .post-detail-stats { display:flex; gap:20px; padding:14px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+    .stat-item { font-size:0.88rem; }
+    .stat-item strong { font-weight:700; }
+    .stat-item span { color:var(--muted); }
+    .reply-compose { padding:14px 16px; border-bottom:1px solid var(--border); display:flex; gap:12px; }
+
+    /* ── RIGHT SIDEBAR ── */
+    .right-col { width:340px; flex-shrink:0; padding:16px 16px; }
+    .search-box {
+      display:flex; align-items:center; gap:10px;
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:100px; padding:10px 16px; margin-bottom:20px;
+    }
+    .search-box input { flex:1; background:none; border:none; outline:none; color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.9rem; }
+    .search-box input::placeholder { color:var(--muted); }
+    .widget-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:16px; }
+    .widget-title { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; margin-bottom:14px; }
+    .trending-item { padding:10px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+    .trending-item:last-child { border-bottom:none; }
+    .trending-label { font-size:0.72rem; color:var(--muted); }
+    .trending-tag { font-weight:700; font-size:0.9rem; }
+    .trending-count { font-size:0.75rem; color:var(--muted); }
+    .suggest-item { display:flex; align-items:center; gap:10px; padding:8px 0; }
+    .suggest-av { width:38px; height:38px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; overflow:hidden; flex-shrink:0; font-size:0.88rem; }
+    .suggest-av img { width:100%; height:100%; object-fit:cover; }
+    .suggest-info { flex:1; min-width:0; }
+    .suggest-name { font-weight:700; font-size:0.86rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .suggest-handle { font-size:0.76rem; color:var(--muted); }
+    .follow-btn { padding:6px 16px; border-radius:100px; font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.82rem; cursor:pointer; transition:all 0.15s; }
+    .follow-btn.following { background:transparent; border:1px solid var(--border2); color:var(--text); }
+    .follow-btn.following:hover { border-color:var(--error); color:var(--error); }
+    .follow-btn:not(.following) { background:var(--text); border:1px solid transparent; color:#000; }
+    .follow-btn:not(.following):hover { background:#dde; }
+
+    /* ── PROFILE PAGE ── */
+    .profile-page-header {
+      position:relative;
+    }
+    .profile-page-banner {
+      height:160px; background:linear-gradient(135deg,#5b6af0,#e040fb);
+      position:relative; overflow:hidden;
+    }
+    .profile-page-banner img, .profile-page-banner video {
+      width:100%; height:100%; object-fit:cover;
+      object-position: var(--banner-pos, 50% 50%);
+      position:absolute; inset:0;
+    }
+    .profile-page-banner .pp-banner { height:100%; }
+    .profile-page-av-row { padding:0 16px; display:flex; justify-content:space-between; align-items:flex-end; margin-top:-36px; margin-bottom:12px; }
+    .profile-page-av { width:72px; height:72px; border-radius:50%; border:4px solid var(--bg); background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.5rem; color:#fff; overflow:hidden; position:relative; z-index:2; }
+    .profile-page-av img { width:100%; height:100%; object-fit:cover; }
+    .profile-edit-btn, .profile-follow-btn { padding:8px 18px; border-radius:100px; font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.88rem; cursor:pointer; transition:all 0.15s; }
+    .profile-edit-btn { background:transparent; border:1px solid var(--border2); color:var(--text); }
+    .profile-edit-btn:hover { background:var(--surface2); }
+    .profile-follow-btn { background:var(--text); border:1px solid transparent; color:#000; }
+    .profile-follow-btn:hover { opacity:0.85; }
+    .profile-follow-btn.following { background:transparent; border:1px solid var(--border2); color:var(--text); }
+    .profile-follow-btn.following:hover { border-color:var(--error); color:var(--error); }
+    .profile-page-info { padding:0 16px 14px; }
+    .profile-page-name { font-family:'Syne',sans-serif; font-weight:800; font-size:1.2rem; }
+    .profile-page-handle { color:var(--muted); font-size:0.86rem; margin-bottom:8px; }
+    .profile-page-bio { font-size:0.92rem; line-height:1.6; margin-bottom:10px; white-space:pre-wrap; word-break:break-word; }
+    .profile-page-meta { display:flex; gap:16px; font-size:0.82rem; color:var(--muted); margin-bottom:10px; flex-wrap:wrap; }
+    .profile-page-stats { display:flex; gap:20px; font-size:0.88rem; }
+    .profile-page-stats a { color:var(--text); text-decoration:none; }
+    .profile-page-stats a strong { font-weight:700; }
+    .profile-page-stats a span { color:var(--muted); }
+    .profile-page-tabs { display:flex; border-bottom:1px solid var(--border); }
+    .profile-page-tab { flex:1; padding:16px 0; text-align:center; font-weight:600; font-size:0.9rem; color:var(--muted); cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; transition:all 0.15s; color:var(--text); }
+    .profile-page-tab.active { border-bottom-color:var(--accent); }
+    .profile-page-tab:hover { background:var(--surface2); }
+
+    /* ── SEARCH RESULTS ── */
+    .search-results { padding:8px 0; }
+    .search-result-item { display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; transition:background 0.1s; }
+    .search-result-item:hover { background:var(--surface2); }
+    .sr-av { width:42px; height:42px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; overflow:hidden; flex-shrink:0; }
+    .sr-av img { width:100%; height:100%; object-fit:cover; }
+
+    /* ── MODAL OVERLAY ── */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:500; display:flex; align-items:center; justify-content:center; padding:16px; opacity:0; pointer-events:none; transition:opacity 0.2s; }
+    .modal-overlay.open { opacity:1; pointer-events:all; }
+    .modal { background:var(--surface); border:1px solid var(--border2); border-radius:var(--radius); padding:24px; max-width:560px; width:100%; max-height:90vh; overflow-y:auto; }
+
+    /* ── MOBILE ── */
+    @media (max-width:900px) { .right-col { display:none; } }
+    /* ── MOBILE BOTTOM NAV ── */
+    .feed-mobile-nav {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+      background: rgba(11,12,16,0.95); backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      height: 60px; align-items: stretch;
+    }
+    .fmn-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; border: none; background: none; color: var(--muted); cursor: pointer;
+      font-size: 0.6rem; font-family: 'DM Sans', sans-serif; font-weight: 600; padding: 0;
+      transition: color 0.15s;
+    }
+    .fmn-btn .fmn-icon { font-size: 1.3rem; line-height: 1; }
+    .fmn-btn.active { color: var(--accent); }
+    .fmn-btn:hover { color: var(--text); }
+    /* FAB post button */
+    .feed-fab {
+      display: none; position: fixed; bottom: 76px; right: 20px; z-index: 300;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none; color: #fff; font-size: 1.5rem; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(91,106,240,0.5);
+      display: none; align-items: center; justify-content: center;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .feed-fab:active { transform: scale(0.93); }
+    @media (max-width:680px) {
+      .left-nav { display: none; }
+      .right-col { display: none; }
+      .feed-col { border-right: none; }
+      .feed-mobile-nav { display: flex; }
+      .feed-fab { display: flex; }
+      body { padding-bottom: 60px; }
+      /* Compose modal full-width on mobile */
+      .modal { margin: 0; border-radius: 16px 16px 0 0; position: fixed; bottom: 60px; left: 0; right: 0; max-height: 90vh; }
+      .modal-overlay.open { align-items: flex-end; }
+    }
+
+    /* ── LOADING ── */
+    .skeleton { background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .empty-feed { padding:48px 24px; text-align:center; color:var(--muted); }
+    .empty-feed .ef-icon { font-size:3rem; margin-bottom:12px; }
+    .empty-feed h3 { font-size:1.1rem; color:var(--text); margin-bottom:6px; }
+
+    /* ── EFFECT CLASSES (same as dashboard) ── */
+    .pp-banner.fx-sparkle::before { content:''; position:absolute; inset:0; pointer-events:none; background-image:radial-gradient(circle,rgba(255,255,255,0.9) 1px,transparent 1px); background-size:24px 24px; animation:sparkleDrift 6s linear infinite; opacity:0.45; }
+    @keyframes sparkleDrift { 0%{background-position:0 0} 100%{background-position:24px 24px} }
+    .pp-banner.fx-aurora::after { content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(120deg,transparent 20%,rgba(0,255,200,0.35) 40%,transparent 60%,rgba(120,80,255,0.35) 80%,transparent); background-size:300% 100%; animation:auroraWave 4s ease-in-out infinite alternate; }
+    @keyframes auroraWave { 0%{background-position:0% 50%} 100%{background-position:100% 50%} }
+    .pp-banner.fx-neon { box-shadow:inset 0 0 20px rgba(0,255,180,0.5),inset 0 0 4px rgba(0,255,180,0.8); animation:neonPulse 2s ease-in-out infinite alternate; }
+    @keyframes neonPulse { 0%{box-shadow:inset 0 0 12px rgba(0,255,180,0.4),inset 0 0 4px rgba(0,255,180,0.7)} 100%{box-shadow:inset 0 0 30px rgba(0,255,180,0.7),inset 0 0 8px rgba(0,255,180,1)} }
+    .pp-banner.fx-holo::before { content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(105deg,transparent 20%,rgba(255,0,128,0.25) 30%,rgba(255,140,0,0.2) 40%,rgba(0,255,120,0.2) 50%,rgba(0,160,255,0.25) 60%,rgba(180,0,255,0.2) 70%,transparent 80%); background-size:200% 100%; animation:holoSlide 2.5s linear infinite; mix-blend-mode:screen; }
+    @keyframes holoSlide { 0%{background-position:0% 0} 100%{background-position:200% 0} }
+    .pp-banner.fx-fire::after { content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(0deg,rgba(255,80,0,0.6) 0%,rgba(255,200,0,0.3) 50%,transparent 100%); animation:fireRise 1.5s ease-in-out infinite alternate; }
+    @keyframes fireRise { 0%{opacity:0.5;transform:scaleY(1)} 100%{opacity:0.9;transform:scaleY(1.08)} }
+    .pp-banner.fx-ice::before { content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at 30% 50%,rgba(180,240,255,0.4) 0%,transparent 60%),radial-gradient(ellipse at 70% 30%,rgba(150,220,255,0.3) 0%,transparent 50%); animation:icePulse 3s ease-in-out infinite alternate; }
+    @keyframes icePulse { 0%{opacity:0.5} 100%{opacity:1} }
+    .pp-banner.fx-glitch::before { content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(transparent 0%,rgba(255,0,100,0.15) 25%,transparent 26%,transparent 74%,rgba(0,200,255,0.15) 75%,transparent 100%); animation:glitchShift 0.8s steps(2) infinite; }
+    @keyframes glitchShift { 0%{transform:translateX(0)} 25%{transform:translateX(-3px)} 50%{transform:translateX(2px)} 75%{transform:translateX(-1px)} 100%{transform:translateX(0)} }
+
+    /* ── LIST MODAL ITEMS ── */
+    .list-user-item { display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background 0.1s; }
+    .list-user-item:hover { background:var(--surface2); }
+    .list-user-av { width:42px;height:42px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;overflow:hidden;flex-shrink:0; }
+    .list-user-av img { width:100%;height:100%;object-fit:cover; }
+
+    /* ── SEARCH TOGGLE ── */
+    .search-toggle { display:flex;background:var(--surface2);border-radius:100px;padding:3px;margin-bottom:16px; }
+    .search-toggle-btn { flex:1;padding:7px;border:none;background:none;color:var(--muted);border-radius:100px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;transition:all 0.15s; }
+    .search-toggle-btn.active { background:var(--surface3);color:var(--text); }
+
+    /* ── FOLLOW BADGE ── */
+    .follow-badge { display:inline-block;padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:700;background:rgba(91,106,240,0.15);color:var(--accent);border:1px solid rgba(91,106,240,0.3);margin-left:6px;vertical-align:middle; }
+
+    /* ── DEV BADGE ── */
+    .dev-badge { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:0.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;background:linear-gradient(135deg,#5b6af0,#e040fb);color:#fff;box-shadow:0 2px 8px rgba(91,106,240,0.4);flex-shrink:0; }
+    .dev-badge-sm { font-size:0.65rem;padding:2px 7px; }
+
+    /* ── REPORT PRESET CHIPS ── */
+    .report-chip { padding:6px 14px;border-radius:100px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;transition:all .15s; }
+    .report-chip.selected { background:rgba(229,57,53,0.18);border-color:#e53935;color:#ff8a80; }
+
+    /* ── INBOX REPORT CARD ── */
+    .inbox-card { background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;transition:border-color .15s; }
+    .inbox-card:hover { border-color:var(--border2); }
+    .inbox-card-header { display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap; }
+    .inbox-type-badge { padding:2px 10px;border-radius:100px;font-size:0.7rem;font-weight:700;text-transform:uppercase; }
+    .inbox-type-badge.post { background:rgba(91,106,240,.2);color:#9fa8ff; }
+    .inbox-type-badge.profile { background:rgba(224,64,251,.2);color:#ea80ff; }
+    .inbox-type-badge.message { background:rgba(0,188,212,.2);color:#4dd0e1; }
+    .inbox-status { padding:2px 8px;border-radius:100px;font-size:0.68rem;font-weight:700; }
+    .inbox-status.open { background:rgba(255,95,87,.18);color:#ff8a80; }
+    .inbox-status.resolved { background:rgba(40,200,64,.15);color:#69f0ae; }
+    .inbox-context { background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0;font-size:0.82rem;color:var(--muted);max-height:120px;overflow-y:auto; }
+    .inbox-context-msg { padding:4px 0;border-bottom:1px solid var(--border);display:flex;gap:8px; }
+    .inbox-context-msg:last-child { border-bottom:none; }
+    .inbox-context-msg.flagged { background:rgba(229,57,53,.08);border-radius:4px;padding:4px 6px; }
+    .inbox-actions { display:flex;gap:6px;flex-wrap:wrap;margin-top:10px; }
+    .inbox-action-btn { padding:6px 14px;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;border:none;transition:opacity .15s; }
+    .inbox-action-btn:hover { opacity:.85; }
+    .inbox-action-btn.warn { background:rgba(245,158,11,.2);color:#fbbf24; }
+    .inbox-action-btn.temp { background:rgba(251,146,60,.2);color:#fb923c; }
+    .inbox-action-btn.ban  { background:rgba(229,57,53,.2);color:#ff8a80; }
+    .inbox-action-btn.del  { background:rgba(156,39,176,.2);color:#e040fb; }
+    .inbox-action-btn.resolve { background:rgba(40,200,64,.15);color:#69f0ae; }
+    .inbox-action-btn.view { background:var(--surface3);color:var(--text); }
+
+    .post-card:hover .post-report-btn { color: var(--muted) !important; }
+    .post-report-btn:hover { color: var(--error) !important; }
+  </style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<div class="app" id="app" style="display:none">
+  <!-- LEFT NAV -->
+  <nav class="left-nav" id="left-nav">
+    <a class="nav-logo" href="feed.html">Nexus</a>
+    <button class="nav-item active" id="nav-home" onclick="showView('home')">
+      <span class="nav-icon">🏠</span><span class="nav-label">Home</span>
+    </button>
+    <button class="nav-item" id="nav-explore" onclick="showView('explore')">
+      <span class="nav-icon">🔍</span><span class="nav-label">Explore</span>
+    </button>
+    <button class="nav-item" id="nav-profile" onclick="goMyProfile()">
+      <span class="nav-icon">👤</span><span class="nav-label">Profile</span>
+    </button>
+    <button class="nav-item" onclick="window.location.href='dashboard.html'">
+      <span class="nav-icon">💬</span><span class="nav-label">Messages</span>
+    </button>
+    <button class="nav-item" onclick="window.location.href='index.html'">
+      <span class="nav-icon">⬅️</span><span class="nav-label">Back</span>
+    </button>
+    <button class="nav-item" id="dev-inbox-btn" style="display:none" onclick="openDevInbox()">
+      <span class="nav-icon">🛡️</span><span class="nav-label">Reports</span>
+    </button>
+    <div class="nav-spacer"></div>
+    <button class="post-btn" onclick="openComposeModal()">
+      <span>✦ Post</span>
+    </button>
+    <div style="height:16px"></div>
+    <button class="nav-user-card" onclick="goMyProfile()" id="nav-user-card">
+      <div class="nav-user-av" id="nav-user-av"></div>
+      <div style="flex:1;min-width:0">
+        <div class="nav-user-name" id="nav-user-name">Loading</div>
+        <div class="nav-user-handle" id="nav-user-handle">@...</div>
+      </div>
+      <span style="color:var(--muted)">···</span>
+    </button>
+  </nav>
+
+  <!-- CENTER FEED -->
+  <main class="feed-col" id="feed-col">
+    <!-- Content injected here -->
+  </main>
+
+  <!-- RIGHT SIDEBAR -->
+  <aside class="right-col" id="right-col">
+    <div class="search-box">
+      <span>🔍</span>
+      <input type="text" id="search-input" placeholder="Search Nexus Feed" oninput="debounceSearch(this.value)"/>
+    </div>
+    <div id="right-content">
+      <!-- trending / who to follow -->
+    </div>
+  </aside>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="feed-mobile-nav" id="feed-mobile-nav">
+  <button class="fmn-btn active" id="fmn-home" onclick="mobileNav('home',this)">
+    <span class="fmn-icon">🏠</span>Home
+  </button>
+  <button class="fmn-btn" id="fmn-explore" onclick="mobileNav('explore',this)">
+    <span class="fmn-icon">🔍</span>Explore
+  </button>
+  <button class="fmn-btn" id="fmn-profile" onclick="mobileNav('profile',this)">
+    <span class="fmn-icon">👤</span>Profile
+  </button>
+  <button class="fmn-btn" id="fmn-messages" onclick="window.location.href='dashboard.html'">
+    <span class="fmn-icon">💬</span>Messages
+  </button>
+  <button class="fmn-btn" id="fmn-back" onclick="window.location.href='index.html'">
+    <span class="fmn-icon">⬅️</span>Back
+  </button>
+  <button class="fmn-btn" id="fmn-reports" onclick="openDevInbox()" style="display:none">
+    <span class="fmn-icon">🛡️</span>Reports
+  </button>
+</nav>
+
+<!-- MOBILE FAB (post button) -->
+<button class="feed-fab" onclick="openComposeModal()" title="New post">✦</button>
+
+<!-- AUTH WALL -->
+<div id="auth-wall" style="display:none;position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:1000">
+  <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;background:linear-gradient(135deg,#5b6af0,#e040fb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Nexus Feed</div>
+  <p style="color:var(--muted);text-align:center;max-width:320px">Sign in to Nexus to see posts, follow people, and share your thoughts.</p>
+  <button onclick="window.location.href='index.html'" style="padding:12px 32px;background:var(--accent);color:#fff;border:none;border-radius:100px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:1rem;cursor:pointer">Go to Nexus →</button>
+</div>
+
+<!-- COMPOSE MODAL -->
+<div class="modal-overlay" id="compose-modal">
+  <div class="modal" style="padding:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
+      <button onclick="closeComposeModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:1.1rem;padding:6px;border-radius:50%">×</button>
+      <span style="font-weight:700">New Post</span>
+      <span></span>
+    </div>
+    <div style="padding:16px;display:flex;gap:12px">
+      <div class="compose-av" id="modal-compose-av"></div>
+      <div style="flex:1;min-width:0">
+        <textarea id="modal-compose-text" class="compose-textarea" placeholder="What's on your mind?" maxlength="505" oninput="updateModalCharCount()" style="min-height:100px"></textarea>
+        <div id="modal-media-preview" class="compose-media-preview"></div>
+        <div class="compose-divider"></div>
+        <div class="compose-actions">
+          <div class="compose-media-btns">
+            <button class="compose-icon-btn" id="modal-img-btn" title="Add image (max 4)" onclick="document.getElementById('modal-img-input').click()">🖼️</button>
+            <button class="compose-icon-btn" id="modal-gif-btn" title="Add GIF (max 4)" onclick="document.getElementById('modal-gif-input').click()">🎞️</button>
+            <button class="compose-icon-btn" id="modal-vid-btn" title="Add video (1 max)" onclick="document.getElementById('modal-vid-input').click()">🎬</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="compose-char-count" id="modal-char-count">500</span>
+            <button class="compose-submit" id="modal-submit-btn" onclick="submitPost()" disabled>Post</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="modal-img-input" accept="image/png,image/jpeg,image/webp" multiple style="display:none" onchange="handleModalMedia(event,'image')"/>
+    <input type="file" id="modal-gif-input" accept="image/gif" multiple style="display:none" onchange="handleModalMedia(event,'gif')"/>
+    <input type="file" id="modal-vid-input" accept="video/*" style="display:none" onchange="handleModalMedia(event,'video')"/>
+  </div>
+</div>
+
+<!-- REPLY MODAL -->
+<div class="modal-overlay" id="reply-modal">
+  <div class="modal" style="padding:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
+      <button onclick="closeReplyModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:1.1rem;padding:6px;border-radius:50%">×</button>
+      <span style="font-weight:700">Reply</span>
+      <span></span>
+    </div>
+    <div id="reply-parent-preview" style="padding:14px 16px;border-bottom:1px solid var(--border);opacity:0.7;font-size:0.88rem"></div>
+    <div style="padding:16px;display:flex;gap:12px">
+      <div class="compose-av" id="reply-compose-av"></div>
+      <div style="flex:1;min-width:0">
+        <textarea id="reply-text" class="compose-textarea" placeholder="Post your reply..." maxlength="505" oninput="updateReplyCharCount()" style="min-height:80px"></textarea>
+        <div class="compose-divider"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="compose-char-count" id="reply-char-count">500</span>
+          <button class="compose-submit" id="reply-submit-btn" onclick="submitReply()" disabled>Reply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT PROFILE MODAL (feed bio) -->
+<div class="modal-overlay" id="edit-feed-profile-modal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:700">Edit Feed Profile</h3>
+      <button onclick="closeModal('edit-feed-profile-modal')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem">×</button>
+    </div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:16px">Your display name and avatar come from your Nexus profile. You can set a separate bio for your Feed profile here.</p>
+    <div style="margin-bottom:14px">
+      <label style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);display:block;margin-bottom:6px">Feed Bio</label>
+      <textarea id="feed-bio-input" rows="4" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;resize:none;outline:none" placeholder="Tell the feed who you are..." maxlength="200"></textarea>
+      <div style="text-align:right;font-size:0.75rem;color:var(--muted);margin-top:4px">max 200 chars</div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeModal('edit-feed-profile-modal')" style="padding:9px 18px;background:var(--surface2);border:1px solid var(--border);border-radius:100px;color:var(--text);font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;font-size:0.88rem">Cancel</button>
+      <button onclick="saveFeedProfile()" style="padding:9px 18px;background:var(--accent);border:none;border-radius:100px;color:#fff;font-family:'DM Sans',sans-serif;font-weight:700;cursor:pointer;font-size:0.88rem">Save</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- REPORT MODAL -->
+<div class="modal-overlay" id="report-modal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem">🚩 Report</h3>
+      <button onclick="closeModal('report-modal')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem">×</button>
+    </div>
+    <p id="report-target-label" style="font-size:0.82rem;color:var(--muted);margin-bottom:14px"></p>
+    <div style="margin-bottom:14px">
+      <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Reason</div>
+      <div id="report-presets" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+      <textarea id="report-custom" placeholder="Add more details (optional)…" maxlength="500"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.88rem;resize:none;outline:none;min-height:72px;margin-top:4px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeModal('report-modal')" style="padding:9px 18px;background:var(--surface2);border:1px solid var(--border);border-radius:100px;color:var(--text);font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;font-size:0.88rem">Cancel</button>
+      <button id="report-submit-btn" onclick="window.submitReport()" style="padding:9px 18px;background:#e53935;border:none;border-radius:100px;color:#fff;font-family:'DM Sans',sans-serif;font-weight:700;cursor:pointer;font-size:0.88rem">Submit Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEV REPORT INBOX MODAL -->
+<div class="modal-overlay" id="dev-inbox-modal" style="z-index:600">
+  <div class="modal" style="padding:0;max-width:780px;max-height:90vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:700">🛡️ Report Inbox</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="inbox-filter" onchange="loadDevInbox()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;outline:none">
+          <option value="open">Open</option>
+          <option value="resolved">Resolved</option>
+          <option value="all">All</option>
+        </select>
+        <button onclick="closeModal('dev-inbox-modal')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;padding:4px 8px">×</button>
+      </div>
+    </div>
+    <div id="dev-inbox-body" style="overflow-y:auto;flex:1;padding:8px"></div>
+  </div>
+</div>
+
+<!-- DEV BAN ACTION MODAL (used from feed) -->
+<div class="modal-overlay" id="feed-ban-modal" style="z-index:700">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h3 id="feed-ban-title" style="font-family:'Syne',sans-serif;font-weight:700;color:var(--error)">🔨 Ban User</h3>
+      <button onclick="closeModal('feed-ban-modal')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem">×</button>
+    </div>
+    <p id="feed-ban-desc" style="font-size:0.88rem;color:var(--muted);margin-bottom:16px"></p>
+    <div id="feed-ban-temp-group" style="margin-bottom:14px;display:none">
+      <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:6px">Ban Until</label>
+      <input type="date" id="feed-ban-until" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.88rem;outline:none;width:100%"/>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:6px">Reason</label>
+      <input id="feed-ban-reason" type="text" placeholder="Reason for action…" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.88rem;outline:none"/>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeModal('feed-ban-modal')" style="padding:9px 18px;background:var(--surface2);border:1px solid var(--border);border-radius:100px;color:var(--text);font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;font-size:0.88rem">Cancel</button>
+      <button id="feed-ban-confirm" onclick="executeFeedBan()" style="padding:9px 18px;background:var(--error);border:none;border-radius:100px;color:#fff;font-family:'DM Sans',sans-serif;font-weight:700;cursor:pointer;font-size:0.88rem">Confirm</button>
+    </div>
+  </div>
+</div>
+<!-- LIST MODAL (followers / following / likes) -->
+<div class="modal-overlay" id="list-modal">
+  <div class="modal" style="padding:0;max-height:80vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button onclick="closeModal('list-modal')" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:1.2rem;padding:4px 8px;border-radius:50%">×</button>
+      <span id="list-modal-title" style="font-family:'Syne',sans-serif;font-weight:700">Following</span>
+      <span></span>
+    </div>
+    <div id="list-modal-body" style="overflow-y:auto;flex:1;padding:8px 0"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, addDoc, onSnapshot, orderBy, serverTimestamp, limit, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+const FB = { apiKey:"AIzaSyDKGqss5jcCNd_AYYohYs-KaSKvZUemX-4", authDomain:"nexus-app-74493.firebaseapp.com", projectId:"nexus-app-74493", storageBucket:"nexus-app-74493.firebasestorage.app", messagingSenderId:"179885556901", appId:"1:179885556901:web:1966afe8102de60d9cb94c" };
+const CLOUDINARY_CLOUD = 'dskssf3tn';
+const CLOUDINARY_PRESET = 'nexus_avatars';
+const MAX_CHARS = 500;
+const DEV_USERNAMES = ['ds64', 'rivalsonts', 'badcooperx', 'ta1nteds0rr0w'];
+
+const app = initializeApp(FB);
+const auth = getAuth(app);
+const db  = getFirestore(app);
+
+let currentUser   = null;
+let myProfile     = null;
+let myFeedProfile = null;
+let currentView     = 'home';
+let replyTargetPost = null;
+let pendingMedia    = [];
+let feedUnsub       = null;
+let profileCache    = {};
+let isDev           = false;
+let _feedBanTarget  = null;   // {uid, type: 'temp'|'permanent'|'warn'|'unban'}
+let _reportTarget   = null;   // {type:'post'|'profile'|'message', id, context}
+let _selectedPreset = null;
+
+const urlParams       = new URLSearchParams(window.location.search);
+const profileUidParam = urlParams.get('uid');
+
+// ── HELPERS ──
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const CP  = ['#5b6af0','#e040fb','#00bcd4','#ff7043','#4caf50','#ffc107','#e91e63','#9c27b0','#00acc1'];
+const color = u => CP[Array.from(u||'x').reduce((a,c)=>a+c.charCodeAt(0),0)%CP.length];
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const s = Math.floor((Date.now()-d)/1000);
+  if (s<60)    return s+'s';
+  if (s<3600)  return Math.floor(s/60)+'m';
+  if (s<86400) return Math.floor(s/3600)+'h';
+  if (s<604800)return Math.floor(s/86400)+'d';
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+window.showToast = function showToast(msg,type='') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(type?' '+type:'');
+  clearTimeout(t._to); t._to=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+window.openModal  = openModal;
+window.closeModal = closeModal;
+
+// ── AUTH ──
+let _feedInitialized = false;
+onAuthStateChanged(auth, async user => {
+  if (!user) {
+    document.getElementById('auth-wall').style.display='flex';
+    document.getElementById('app').style.display='none';
+    return;
+  }
+  currentUser = user;
+  if (_feedInitialized) return; // auth fires multiple times; only init once
+  _feedInitialized = true;
+
+  // ── Ban check — same bans collection as dashboard ──
+  try {
+    const banSnap = await getDoc(doc(db,'bans',user.uid));
+    if (banSnap.exists()) {
+      const ban = banSnap.data();
+      if (ban.type === 'permanent') {
+        await signOut(auth);
+        document.getElementById('auth-wall').querySelector('p').textContent =
+          'Your account has been permanently banned. Contact support if you believe this is an error.';
+        document.getElementById('auth-wall').style.display='flex';
+        document.getElementById('app').style.display='none';
+        return;
+      }
+      if (ban.type === 'temporary' && ban.until) {
+        const until = ban.until.toDate ? ban.until.toDate() : new Date(ban.until);
+        if (new Date() < until) {
+          await signOut(auth);
+          document.getElementById('auth-wall').querySelector('p').textContent =
+            `Your account is temporarily banned until ${until.toLocaleDateString()}. Reason: ${ban.reason||'Policy violation'}`;
+          document.getElementById('auth-wall').style.display='flex';
+          document.getElementById('app').style.display='none';
+          return;
+        }
+        // Expired temp ban — clean it up
+        await deleteDoc(doc(db,'bans',user.uid));
+      }
+    }
+  } catch(e) { console.warn('Ban check failed:', e); }
+
+  await loadMyProfiles();
+
+  // ── Dev detection ──
+  isDev = DEV_USERNAMES.includes(myProfile.username);
+  const inboxBtn = document.getElementById('dev-inbox-btn');
+  if (inboxBtn) inboxBtn.style.display = isDev ? '' : 'none';
+  const mobileReportsBtn = document.getElementById('fmn-reports');
+  if (mobileReportsBtn) mobileReportsBtn.style.display = isDev ? '' : 'none';
+
+  document.getElementById('auth-wall').style.display='none';
+  document.getElementById('app').style.display='flex';
+  updateNavUser();
+  loadRightSidebar();
+  if (profileUidParam) showView('profile', profileUidParam);
+  else showView('home');
+});
+
+async function loadMyProfiles() {
+  const [nexus, feed] = await Promise.all([
+    getDoc(doc(db,'users',currentUser.uid)),
+    getDoc(doc(db,'feedProfiles',currentUser.uid))
+  ]);
+  myProfile     = nexus.exists() ? nexus.data() : {};
+  myFeedProfile = feed.exists()  ? feed.data()  : {};
+  if (!myFeedProfile.following) myFeedProfile.following = [];
+  if (!myFeedProfile.followers) myFeedProfile.followers = [];
+  if (!myFeedProfile.likesPrivate) myFeedProfile.likesPrivate = false;
+}
+
+function updateNavUser() {
+  const name = myProfile.displayName||myProfile.username||'Me';
+  const av   = document.getElementById('nav-user-av');
+  if (myProfile.avatarUrl){ av.innerHTML=`<img src="${myProfile.avatarUrl}"/>`; av.style.background=''; }
+  else { av.textContent=name[0].toUpperCase(); av.style.background=color(myProfile.username||'x'); }
+  document.getElementById('nav-user-name').textContent   = name;
+  document.getElementById('nav-user-handle').textContent = '@'+(myProfile.username||'');
+}
+
+// Reliable "go to my profile" — uses currentUser which is always set by this point
+window.goMyProfile = function() {
+  if (currentUser) showView('profile', currentUser.uid);
+};
+
+// Mobile bottom nav
+window.mobileNav = function(view, btn) {
+  document.querySelectorAll('.fmn-btn').forEach(b=>b.classList.remove('active'));
+  btn?.classList.add('active');
+  if (view === 'profile') showView('profile', currentUser?.uid);
+  else showView(view);
+};
+
+// ── PROFILE CACHE ──
+async function getProfile(uid) {
+  if (profileCache[uid]) return profileCache[uid];
+  const [ns,fs] = await Promise.all([
+    getDoc(doc(db,'users',uid)),
+    getDoc(doc(db,'feedProfiles',uid))
+  ]);
+  const n = ns.exists() ? ns.data() : {};
+  const f = fs.exists() ? fs.data() : {};
+  const p = {...n, feedBio:f.feedBio||'', following:f.following||[], followers:f.followers||[], likesPrivate:f.likesPrivate||false, id:uid};
+  profileCache[uid] = p;
+  return p;
+}
+
+// Batch-prefetch all author profiles for a post list
+async function prefetchProfiles(posts) {
+  const uids = [...new Set(posts.map(p=>p.authorUid).filter(u=>u&&!profileCache[u]))];
+  if (!uids.length) return;
+  await Promise.all(uids.map(uid=>getProfile(uid)));
+}
+
+// ── VIEWS ──
+window.showView = async function(view, param) {
+  currentView = view;
+  if (feedUnsub) { feedUnsub(); feedUnsub=null; }
+  // Sync desktop nav active state
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  const nm={home:'nav-home',explore:'nav-explore',profile:'nav-profile'};
+  document.getElementById(nm[view])?.classList.add('active');
+  // Sync mobile bottom nav active state
+  document.querySelectorAll('.fmn-btn').forEach(b=>b.classList.remove('active'));
+  const mnm={home:'fmn-home',explore:'fmn-explore',profile:'fmn-profile'};
+  document.getElementById(mnm[view])?.classList.add('active');
+
+  const fc=document.getElementById('feed-col');
+  fc.innerHTML='<div class="empty-feed"><div class="skeleton" style="height:52px;margin:16px"></div><div class="skeleton" style="height:120px;margin:16px;margin-top:0"></div><div class="skeleton" style="height:120px;margin:16px;margin-top:0"></div></div>';
+
+  if      (view==='home')    await renderHome();
+  else if (view==='explore') await renderExplore();
+  else if (view==='profile') await renderProfile(param||currentUser.uid);
+  else if (view==='post')    await renderPost(param);
+};
+
+// ── HOME ──
+async function renderHome() {
+  const fc=document.getElementById('feed-col');
+  const name=myProfile.displayName||myProfile.username||'?';
+  const cavBg=myProfile.avatarUrl?'':color(myProfile.username||'x');
+  const cavHtml=myProfile.avatarUrl?`<img src="${myProfile.avatarUrl}"/>`:name[0].toUpperCase();
+
+  fc.innerHTML=`
+    <div style="position:sticky;top:0;z-index:10;background:rgba(11,12,16,0.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:14px 16px;font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem">Home</div>
+    <div class="compose-box">
+      <div class="compose-av" style="background:${cavBg}">${cavHtml}</div>
+      <div class="compose-right">
+        <textarea class="compose-textarea" placeholder="What's on your mind?" onclick="openComposeModal()" readonly style="cursor:pointer" rows="2"></textarea>
+        <div class="compose-divider"></div>
+        <div class="compose-actions">
+          <div class="compose-media-btns">
+            <button class="compose-icon-btn" onclick="openComposeModal()">🖼️</button>
+            <button class="compose-icon-btn" onclick="openComposeModal()">🎞️</button>
+            <button class="compose-icon-btn" onclick="openComposeModal()">🎬</button>
+          </div>
+          <button class="compose-submit" onclick="openComposeModal()">Post</button>
+        </div>
+      </div>
+    </div>
+    <div id="feed-posts"></div>`;
+
+  const following=[...(myFeedProfile.following||[]),currentUser.uid];
+  // No compound index needed — fetch all recent, filter client-side
+  const q=query(collection(db,'feedPosts'),orderBy('createdAt','desc'),limit(60));
+  feedUnsub=onSnapshot(q, async snap=>{
+    const posts=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(p=>following.includes(p.authorUid)&&!p.replyTo);
+    await prefetchProfiles(posts);
+    const cont=document.getElementById('feed-posts');
+    if (cont) renderPostList(posts,cont);
+  });
+}
+
+// ── EXPLORE ──
+async function renderExplore() {
+  const fc=document.getElementById('feed-col');
+  fc.innerHTML=`
+    <div style="position:sticky;top:0;z-index:10;background:rgba(11,12,16,0.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:14px 16px;font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem">Explore</div>
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+      <div class="search-box" style="margin-bottom:10px">
+        <span>🔍</span>
+        <input type="text" id="explore-search" placeholder="Search..." oninput="runExploreSearch(this.value)" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem"/>
+      </div>
+      <div class="search-toggle">
+        <button class="search-toggle-btn active" id="stoggle-people" onclick="setSearchMode('people')">👤 People</button>
+        <button class="search-toggle-btn" id="stoggle-posts" onclick="setSearchMode('posts')">📝 Posts</button>
+      </div>
+    </div>
+    <div id="explore-results"></div>`;
+
+  window._searchMode='people';
+  await loadRecentPosts();
+}
+
+let _recentPostsCache=null;
+async function loadRecentPosts() {
+  const res=document.getElementById('explore-results');
+  if (!res) return;
+  res.innerHTML='<div class="empty-feed"><div class="skeleton" style="height:100px;margin-bottom:8px"></div></div>';
+  if (!_recentPostsCache) {
+    const snap=await getDocs(query(collection(db,'feedPosts'),orderBy('createdAt','desc'),limit(30)));
+    _recentPostsCache=snap.docs.map(d=>({id:d.id,...d.data()})).filter(p=>!p.replyTo);
+  }
+  await prefetchProfiles(_recentPostsCache);
+  renderPostList(_recentPostsCache,res);
+}
+
+window.setSearchMode=function(mode){
+  window._searchMode=mode;
+  document.getElementById('stoggle-people')?.classList.toggle('active',mode==='people');
+  document.getElementById('stoggle-posts')?.classList.toggle('active',mode==='posts');
+  const val=document.getElementById('explore-search')?.value||'';
+  if (val.trim()) runExploreSearch(val);
+  else loadRecentPosts();
+};
+
+window.runExploreSearch=async function(val){
+  const res=document.getElementById('explore-results');
+  if (!res) return;
+  if (!val.trim()) { loadRecentPosts(); return; }
+  res.innerHTML='<div class="empty-feed"><div class="skeleton" style="height:60px;margin-bottom:8px"></div></div>';
+
+  if (window._searchMode==='people') {
+    const v=val.toLowerCase().replace('@','');
+    const snap=await getDocs(query(collection(db,'users'),where('username','>=',v),where('username','<=',v+'\uf8ff'),limit(10)));
+    const users=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if (!users.length){res.innerHTML=`<div class="empty-feed"><div class="ef-icon">🔍</div><h3>No people found for "${esc(val)}"</h3></div>`;return;}
+    res.innerHTML=users.map(u=>{
+      const n=u.displayName||u.username||'?';
+      return `<div class="search-result-item" onclick="showView('profile','${u.id}')">
+        <div class="sr-av" style="background:${color(u.username)}">${u.avatarUrl?`<img src="${u.avatarUrl}"/>`:n[0].toUpperCase()}</div>
+        <div><div style="font-weight:700">${esc(n)}</div><div style="font-size:0.78rem;color:var(--muted)">@${esc(u.username||'')}</div></div>
+      </div>`;
+    }).join('');
+  } else {
+    // Search posts by text (client-side filter on recent posts)
+    const snap=await getDocs(query(collection(db,'feedPosts'),orderBy('createdAt','desc'),limit(100)));
+    const lv=val.toLowerCase();
+    const posts=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(p=>!p.replyTo&&p.text&&p.text.toLowerCase().includes(lv));
+    await prefetchProfiles(posts);
+    if (!posts.length){res.innerHTML=`<div class="empty-feed"><div class="ef-icon">🔍</div><h3>No posts found for "${esc(val)}"</h3></div>`;return;}
+    renderPostList(posts,res);
+  }
+};
+
+// ── PROFILE ──
+async function renderProfile(uid) {
+  const fc=document.getElementById('feed-col');
+  const [profile] = await Promise.all([getProfile(uid)]);
+  const isMe = uid===currentUser.uid;
+  const name = profile.displayName||profile.username||'Unknown';
+  const feedBio = isMe?(myFeedProfile.feedBio||''):(profile.feedBio||'');
+
+  const amFollowing  = (myFeedProfile.following||[]).includes(uid);
+  const theyFollow   = (profile.followers||[]).includes(currentUser.uid); // they follow me
+  const theyFollowMe = (myFeedProfile.followers||[]).includes(uid);       // they follow me (my followers list)
+
+  const followerCount  = (profile.followers||[]).length;
+  const followingCount = (profile.following||[]).length;
+
+  // Follow relationship label
+  let relationLabel='';
+  if (!isMe) {
+    if (amFollowing && theyFollowMe) relationLabel='<span class="follow-badge">↔ Follows each other</span>';
+    else if (theyFollowMe)           relationLabel='<span class="follow-badge">Follows you</span>';
+  }
+
+  const fxClass=profile.effect&&profile.effect!=='none'?' fx-'+profile.effect:'';
+  let bannerInner='';
+  if (profile.bannerUrl) {
+    const isGif=profile.bannerUrl.includes('.gif');
+    const pos=profile.bannerPos||'50% 50%';
+    bannerInner=isGif
+      ?`<video autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;object-position:${pos};position:absolute;inset:0" src="${profile.bannerUrl}"></video>`
+      :`<img src="${profile.bannerUrl}" style="width:100%;height:100%;object-fit:cover;object-position:${pos};position:absolute;inset:0"/>`;
+  }
+  const bannerBg=profile.bannerUrl?'':`linear-gradient(135deg,${color(profile.username||'x')},${color((profile.username||'x')+'2')})`;
+
+  const privacySettings = isMe ? myFeedProfile : profile;
+  const likesPrivate = privacySettings.likesPrivate||false;
+
+  fc.innerHTML=`
+    <div style="position:sticky;top:0;z-index:10;background:rgba(11,12,16,0.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:14px">
+      <button class="back-btn" onclick="history.length>1?history.back():showView('home')">←</button>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem">${esc(name)}</div>
+        <div style="font-size:0.78rem;color:var(--muted)" id="profile-post-count">Loading…</div>
+      </div>
+    </div>
+    <div class="profile-page-header">
+      <div class="profile-page-banner pp-banner${fxClass}" style="background:${bannerBg}">${bannerInner}</div>
+      <div class="profile-page-av-row">
+        <div class="profile-page-av" style="background:${color(profile.username||'x')}">
+          ${profile.avatarUrl?`<img src="${profile.avatarUrl}"/>`:name[0].toUpperCase()}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${isMe
+            ?`<button class="profile-edit-btn" onclick="openEditFeedProfile()">Edit Profile</button>
+              <button class="profile-edit-btn" onclick="openPrivacySettings()" style="font-size:0.8rem">🔒 Privacy</button>`
+            :`<button class="profile-follow-btn${amFollowing?' following':''}" id="follow-btn" onclick="toggleFollow('${uid}')">${amFollowing?'Following':'Follow'}</button>
+             ${isDev&&!isMe?`<button onclick="openFeedBanModal('${uid}','${esc(name)}','temp')" style="padding:6px 14px;background:rgba(245,158,11,.2);color:#fbbf24;border:none;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer">⏳ Temp Ban</button>
+               <button onclick="openFeedBanModal('${uid}','${esc(name)}','permanent')" style="padding:6px 14px;background:rgba(229,57,53,.2);color:#ff8a80;border:none;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer">🔨 Ban</button>
+               <button onclick="openFeedBanModal('${uid}','${esc(name)}','unban')" style="padding:6px 14px;background:rgba(40,200,64,.15);color:#69f0ae;border:none;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer">✓ Unban</button>`:''}
+             ${!isMe?`<button onclick="openReportModal('profile','${uid}',null,'@${esc(profile.username||uid)}')" style="padding:6px 14px;background:rgba(229,57,53,.12);color:var(--error);border:1px solid rgba(229,57,53,.3);border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer">🚩 Report</button>`
+             :''}`}
+        </div>
+      </div>
+      <div class="profile-page-info">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="profile-page-name">${esc(name)}</div>
+          ${DEV_USERNAMES.includes(profile.username)?'<span class="dev-badge">✦ Developer</span>':''}
+          ${relationLabel}
+        </div>
+        <div class="profile-page-handle">@${esc(profile.username||'')}</div>
+        ${feedBio?`<div class="profile-page-bio">${esc(feedBio)}</div>`:''}
+        ${profile.bio&&feedBio!==profile.bio?`<div style="font-size:0.84rem;color:var(--muted);margin-bottom:6px">💬 ${esc(profile.bio)}</div>`:''}
+        <div class="profile-page-stats" style="margin-top:8px">
+          <span onclick="openListModal('following','${uid}')" style="cursor:pointer"><strong>${followingCount}</strong> <span>Following</span></span>
+          <span onclick="openListModal('followers','${uid}')" style="cursor:pointer"><strong>${followerCount}</strong> <span>Followers</span></span>
+        </div>
+      </div>
+      <div class="profile-page-tabs">
+        <button class="profile-page-tab active" id="tab-posts" onclick="switchProfileTab('posts','${uid}')">Posts</button>
+        <button class="profile-page-tab" id="tab-replies" onclick="switchProfileTab('replies','${uid}')">Replies</button>
+        ${!likesPrivate||isMe?`<button class="profile-page-tab" id="tab-likes" onclick="switchProfileTab('likes','${uid}')">Likes</button>`:''}
+      </div>
+    </div>
+    <div id="profile-posts"></div>`;
+
+  loadProfilePosts(uid,'posts');
+}
+
+window.switchProfileTab=function(tab,uid){
+  document.querySelectorAll('.profile-page-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+tab)?.classList.add('active');
+  loadProfilePosts(uid,tab);
+};
+
+async function loadProfilePosts(uid,tab) {
+  const container=document.getElementById('profile-posts');
+  if (!container) return;
+  container.innerHTML='<div class="empty-feed"><div class="skeleton" style="height:100px;margin-bottom:8px"></div><div class="skeleton" style="height:100px"></div></div>';
+
+  try {
+    let posts=[];
+    if (tab==='likes') {
+      // Fetch posts liked by this user — no compound index needed
+      // No orderBy on array-contains query — would require composite index. Sort client-side.
+      const snap=await getDocs(query(collection(db,'feedPosts'),where('likes','array-contains',uid),limit(50)));
+      posts=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.toMillis?.()??0)-(a.createdAt?.toMillis?.()??0));
+    } else {
+      // Simple single-field query + client-side filter — avoids composite index requirement
+      // No orderBy alongside where() — would need composite index. Sort client-side.
+      const snap=await getDocs(query(collection(db,'feedPosts'),where('authorUid','==',uid),limit(60)));
+      const all=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.toMillis?.()??0)-(a.createdAt?.toMillis?.()??0));
+      posts = tab==='replies' ? all.filter(p=>!!p.replyTo) : all.filter(p=>!p.replyTo);
+    }
+    await prefetchProfiles(posts);
+    const countEl=document.getElementById('profile-post-count');
+    if (countEl) countEl.textContent=posts.length+(tab==='posts'?' post'+(posts.length!==1?'s':''):'');
+    renderPostList(posts,container,tab==='replies');
+  } catch(e) {
+    console.error('loadProfilePosts error',e);
+    container.innerHTML=`<div class="empty-feed"><div class="ef-icon">⚠️</div><h3>Failed to load</h3><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+// ── FOLLOWERS / FOLLOWING / LIKES LIST MODAL ──
+window.openListModal=async function(type,uid){
+  openModal('list-modal');
+  const titleEl=document.getElementById('list-modal-title');
+  const bodyEl =document.getElementById('list-modal-body');
+  titleEl.textContent=type==='followers'?'Followers':type==='following'?'Following':'Likes';
+  bodyEl.innerHTML='<div class="empty-feed"><div class="skeleton" style="height:52px;margin-bottom:8px"></div><div class="skeleton" style="height:52px"></div></div>';
+
+  const profile=await getProfile(uid);
+  const uids = type==='followers'?(profile.followers||[]):( profile.following||[]);
+
+  if (!uids.length){bodyEl.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">Nobody here yet.</div>';return;}
+
+  const profiles=await Promise.all(uids.map(u=>getProfile(u)));
+  bodyEl.innerHTML=profiles.map(p=>{
+    const n=p.displayName||p.username||'?';
+    const amFollowingP=(myFeedProfile.following||[]).includes(p.id);
+    return `<div class="list-user-item" onclick="closeModal('list-modal');showView('profile','${p.id}')">
+      <div class="list-user-av" style="background:${color(p.username||'x')}">${p.avatarUrl?`<img src="${p.avatarUrl}"/>`:n[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:0.9rem">${esc(n)}</div>
+        <div style="font-size:0.78rem;color:var(--muted)">@${esc(p.username||'')}</div>
+      </div>
+      ${p.id!==currentUser.uid?`<button class="follow-btn${amFollowingP?' following':''}" data-uid="${p.id}" onclick="event.stopPropagation();toggleFollow('${p.id}')">${amFollowingP?'Following':'Follow'}</button>`:''}
+    </div>`;
+  }).join('');
+};
+
+// ── SINGLE POST ──
+async function renderPost(postId) {
+  const fc=document.getElementById('feed-col');
+  try {
+    const postSnap=await getDoc(doc(db,'feedPosts',postId));
+    if (!postSnap.exists()){fc.innerHTML='<div class="empty-feed"><div class="ef-icon">🔍</div><h3>Post not found</h3></div>';return;}
+    const post={id:postSnap.id,...postSnap.data()};
+    const author=await getProfile(post.authorUid);
+    const authorName=author.displayName||author.username||'?';
+    const likedByMe=(post.likes||[]).includes(currentUser.uid);
+
+    // Load replies: simple where + client-side sort — no composite index needed
+    const repliesSnap=await getDocs(query(collection(db,'feedPosts'),where('replyTo','==',postId),limit(50)));
+    const replies=repliesSnap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(a.createdAt?.toMillis?.()??0)-(b.createdAt?.toMillis?.()??0));
+
+    await prefetchProfiles(replies);
+
+    const name=myProfile.displayName||myProfile.username||'?';
+    const cavBg=myProfile.avatarUrl?'':color(myProfile.username||'x');
+    const cavHtml=myProfile.avatarUrl?`<img src="${myProfile.avatarUrl}"/>`:name[0].toUpperCase();
+
+    fc.innerHTML=`
+      <div style="position:sticky;top:0;z-index:10;background:rgba(11,12,16,0.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:14px">
+        <button class="back-btn" onclick="history.length>1?history.back():showView('home')">←</button>
+        <span style="font-family:'Syne',sans-serif;font-weight:700">Post</span>
+      </div>
+      <div class="post-detail-card">
+        <div class="post-detail-av-row">
+          <div class="post-detail-av" style="background:${color(author.username||'x')}" onclick="showView('profile','${post.authorUid}')">
+            ${author.avatarUrl?`<img src="${author.avatarUrl}"/>`:authorName[0].toUpperCase()}
+          </div>
+          <div>
+            <div style="font-weight:700">${esc(authorName)}</div>
+            <div style="font-size:0.8rem;color:var(--muted)">@${esc(author.username||'')}</div>
+          </div>
+          ${post.authorUid===currentUser.uid?`<button onclick="deletePost('${post.id}')" style="margin-left:auto;background:none;border:none;color:var(--error);cursor:pointer;padding:6px 10px;border-radius:8px;font-size:0.85rem">🗑️ Delete</button>`:''}
+        </div>
+        <div class="post-detail-body">${esc(post.text)}</div>
+        ${renderMediaGrid(post.media||[])}
+        <div class="post-detail-time">${post.createdAt?new Date(post.createdAt.toDate?post.createdAt.toDate():post.createdAt).toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):''}</div>
+        <div class="post-detail-stats">
+          <div class="stat-item" onclick="openLikersModal('${post.id}')" style="cursor:pointer"><strong>${(post.likes||[]).length}</strong> <span>Likes</span></div>
+          <div class="stat-item"><strong>${replies.length}</strong> <span>Replies</span></div>
+          <div class="stat-item"><strong>${(post.reposts||[]).length}</strong> <span>Reposts</span></div>
+        </div>
+        <div class="post-actions" style="padding-left:0;border-top:1px solid var(--border);margin-top:8px">
+          <button class="post-action-btn reply-btn" onclick="openReplyModal('${post.id}','${esc(authorName)}','${esc(post.text.substring(0,60))}')">
+            <span class="act-icon">💬</span><span>${replies.length}</span>
+          </button>
+          <button class="post-action-btn repost-btn${(post.reposts||[]).includes(currentUser.uid)?' reposted':''}" onclick="toggleRepost('${post.id}')">
+            <span class="act-icon">🔁</span><span id="detail-rp-count">${(post.reposts||[]).length}</span>
+          </button>
+          <button class="post-action-btn like-btn${likedByMe?' liked':''}" id="detail-like-btn" onclick="toggleLike('${post.id}')">
+            <span class="act-icon">${likedByMe?'❤️':'🤍'}</span><span id="detail-like-count">${(post.likes||[]).length}</span>
+          </button>
+        </div>
+      </div>
+      <div class="reply-compose">
+        <div class="compose-av" style="background:${cavBg}">${cavHtml}</div>
+        <div style="flex:1">
+          <textarea id="inline-reply-text" class="compose-textarea" placeholder="Post your reply…" style="min-height:60px" oninput="document.getElementById('inline-reply-btn').disabled=!this.value.trim()"></textarea>
+          <div style="text-align:right;margin-top:4px"><button id="inline-reply-btn" class="compose-submit" disabled onclick="submitInlineReply('${post.id}')">Reply</button></div>
+        </div>
+      </div>
+      <div id="replies-list"></div>`;
+
+    renderPostList(replies,document.getElementById('replies-list'),true);
+  } catch(e) {
+    console.error('renderPost error',e);
+    fc.innerHTML=`<div class="empty-feed"><div class="ef-icon">⚠️</div><h3>Failed to load post</h3><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+// ── LIKERS MODAL ──
+window.openLikersModal=async function(postId){
+  openModal('list-modal');
+  document.getElementById('list-modal-title').textContent='Liked by';
+  const bodyEl=document.getElementById('list-modal-body');
+  bodyEl.innerHTML='<div class="empty-feed"><div class="skeleton" style="height:52px"></div></div>';
+  const snap=await getDoc(doc(db,'feedPosts',postId));
+  if (!snap.exists()){bodyEl.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">Post not found.</div>';return;}
+  const likes=snap.data().likes||[];
+  if (!likes.length){bodyEl.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">No likes yet.</div>';return;}
+  const profiles=await Promise.all(likes.map(u=>getProfile(u)));
+  bodyEl.innerHTML=profiles.map(p=>{
+    const n=p.displayName||p.username||'?';
+    return `<div class="list-user-item" onclick="closeModal('list-modal');showView('profile','${p.id}')">
+      <div class="list-user-av" style="background:${color(p.username||'x')}">${p.avatarUrl?`<img src="${p.avatarUrl}"/>`:n[0].toUpperCase()}</div>
+      <div><div style="font-weight:700;font-size:0.9rem">${esc(n)}</div><div style="font-size:0.78rem;color:var(--muted)">@${esc(p.username||'')}</div></div>
+    </div>`;
+  }).join('');
+};
+
+// ── RENDER POSTS ──
+function renderPostList(posts,container,isReplies=false) {
+  if (!container) return;
+  if (!posts.length) {
+    container.innerHTML=`<div class="empty-feed"><div class="ef-icon">${isReplies?'💬':'✦'}</div><h3>${isReplies?'No replies yet':'Nothing here yet'}</h3><p>${isReplies?'Be the first to reply!':'Follow people or post something!'}</p></div>`;
+    return;
+  }
+  container.innerHTML='';
+  posts.forEach(post=>container.appendChild(createPostEl(post)));
+}
+
+function createPostEl(post) {
+  const card=document.createElement('div');
+  card.className='post-card';
+  const author=profileCache[post.authorUid]||{};
+  const name=author.displayName||author.username||'?';
+  const likedByMe=(post.likes||[]).includes(currentUser.uid);
+  const repostByMe=(post.reposts||[]).includes(currentUser.uid);
+  const lc=(post.likes||[]).length;
+  const rc=post.replyCount||0;
+  const rpc=(post.reposts||[]).length;
+
+  card.innerHTML=`
+    <div class="post-header">
+      <div class="post-av" style="background:${color(author.username||'x')}" onclick="event.stopPropagation();showView('profile','${post.authorUid}')">
+        ${author.avatarUrl?`<img src="${author.avatarUrl}"/>`:name[0].toUpperCase()}
+      </div>
+      <div class="post-meta">
+        <span class="post-name">${esc(name)}</span>
+        ${DEV_USERNAMES.includes(author.username)?'<span class="dev-badge dev-badge-sm">✦ Dev</span>':''}
+        <span class="post-handle"> @${esc(author.username||'')}</span>
+        <span class="post-time"> · ${timeAgo(post.createdAt)}</span>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:2px">
+        ${post.authorUid!==currentUser.uid?`<button onclick="event.stopPropagation();openReportModal('post','${post.id}',null,'post by @${esc(author.username||'?')}')" style="background:none;border:none;color:transparent;cursor:pointer;padding:4px 7px;border-radius:6px;transition:color .15s;font-size:0.78rem" class="post-report-btn" title="Report">🚩</button>`:''}
+        ${post.authorUid===currentUser.uid||isDev?`<button onclick="event.stopPropagation();deletePost('${post.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:6px;transition:color 0.15s" onmouseover="this.style.color='var(--error)'" onmouseout="this.style.color='var(--muted)'" title="Delete post">🗑</button>`:''}
+      </div>
+    </div>
+    <div class="post-body">${esc(post.text)}</div>
+    ${post.media?.length?`<div class="post-media">${renderMediaGrid(post.media)}</div>`:''}
+    <div class="post-actions">
+      <button class="post-action-btn reply-btn" onclick="event.stopPropagation();openReplyModal('${post.id}','${esc(name)}','${esc((post.text||'').substring(0,60)).replace(/'/g,"\'")}')">
+        <span class="act-icon">💬</span><span>${rc}</span>
+      </button>
+      <button class="post-action-btn repost-btn${repostByMe?' reposted':''}" onclick="event.stopPropagation();toggleRepost('${post.id}')">
+        <span class="act-icon">🔁</span><span id="rp-${post.id}">${rpc}</span>
+      </button>
+      <button class="post-action-btn like-btn${likedByMe?' liked':''}" id="like-${post.id}" onclick="event.stopPropagation();toggleLike('${post.id}')">
+        <span class="act-icon">${likedByMe?'❤️':'🤍'}</span><span id="lc-${post.id}">${lc}</span>
+      </button>
+    </div>`;
+
+  card.addEventListener('click',()=>showView('post',post.id));
+  return card;
+}
+
+function renderMediaGrid(media) {
+  if (!media||!media.length) return '';
+  const n=Math.min(media.length,4);
+  return `<div class="post-media-grid n${n}">${media.slice(0,n).map(m=>{
+    if (m.type==='video') return `<div class="media-item"><video src="${m.url}" controls preload="none"></video></div>`;
+    return `<div class="media-item"><img src="${m.url}" loading="lazy" onclick="event.stopPropagation();window.open('${m.url}','_blank')"/></div>`;
+  }).join('')}</div>`;
+}
+
+// ── COMPOSE ──
+window.openComposeModal=function(){
+  pendingMedia=[];
+  document.getElementById('modal-compose-text').value='';
+  document.getElementById('modal-media-preview').innerHTML='';
+  document.getElementById('modal-char-count').textContent=MAX_CHARS;
+  document.getElementById('modal-submit-btn').disabled=true;
+  updateModalMediaBtns();
+  const av=document.getElementById('modal-compose-av');
+  const n=myProfile.displayName||myProfile.username||'?';
+  if (myProfile.avatarUrl){av.innerHTML=`<img src="${myProfile.avatarUrl}"/>`;av.style.background='';}
+  else{av.textContent=n[0].toUpperCase();av.style.background=color(myProfile.username||'x');}
+  openModal('compose-modal');
+};
+window.closeComposeModal=function(){closeModal('compose-modal');};
+
+window.updateModalCharCount=function(){
+  const val=document.getElementById('modal-compose-text').value;
+  const rem=MAX_CHARS-val.length;
+  const el=document.getElementById('modal-char-count');
+  el.textContent=rem;
+  el.className='compose-char-count'+(rem<20?' warn':'')+(rem<0?' over':'');
+  document.getElementById('modal-submit-btn').disabled=!val.trim()||rem<0;
+};
+
+window.handleModalMedia=function(event,type){
+  const files=Array.from(event.target.files);
+  event.target.value='';
+  if (!files.length) return;
+  if (type==='video'){
+    if (pendingMedia.some(m=>m.type==='image'||m.type==='gif')){showToast('Cannot mix video with images/GIFs','error');return;}
+    if (pendingMedia.some(m=>m.type==='video')){showToast('Only 1 video per post','error');return;}
+    const f=files[0];
+    if (f.size>50*1024*1024){showToast('Video must be under 50MB','error');return;}
+    pendingMedia.push({file:f,dataUrl:URL.createObjectURL(f),type:'video'});
+  } else {
+    if (pendingMedia.some(m=>m.type==='video')){showToast('Cannot mix video with images/GIFs','error');return;}
+    const remaining=4-pendingMedia.length;
+    if (remaining<=0){showToast('Max 4 images/GIFs per post','error');return;}
+    files.slice(0,remaining).forEach(f=>{
+      if (f.size>8*1024*1024){showToast('File must be under 8MB','error');return;}
+      pendingMedia.push({file:f,dataUrl:URL.createObjectURL(f),type});
+    });
+  }
+  updateModalMediaPreview();
+  updateModalMediaBtns();
+};
+
+function updateModalMediaPreview(){
+  const p=document.getElementById('modal-media-preview');
+  p.innerHTML='';
+  pendingMedia.forEach((m,i)=>{
+    const w=document.createElement('div');w.className='compose-media-item';
+    w.innerHTML=m.type==='video'?`<video src="${m.dataUrl}" style="height:100px;max-width:160px;border-radius:10px"></video>`:`<img src="${m.dataUrl}"/>`;
+    const r=document.createElement('button');r.className='compose-media-remove';r.textContent='×';
+    r.onclick=()=>{pendingMedia.splice(i,1);updateModalMediaPreview();updateModalMediaBtns();};
+    w.appendChild(r);p.appendChild(w);
+  });
+}
+
+function updateModalMediaBtns(){
+  const hasVid=pendingMedia.some(m=>m.type==='video');
+  const hasImg=pendingMedia.some(m=>m.type==='image'||m.type==='gif');
+  const full=pendingMedia.length>=4;
+  document.getElementById('modal-img-btn').disabled=hasVid||full;
+  document.getElementById('modal-gif-btn').disabled=hasVid||full;
+  document.getElementById('modal-vid-btn').disabled=hasImg||hasVid;
+}
+
+window.submitPost=async function(){
+  const text=document.getElementById('modal-compose-text').value.trim();
+  if (!text||text.length>MAX_CHARS) return;
+  const btn=document.getElementById('modal-submit-btn');
+  btn.disabled=true;btn.textContent='Posting…';
+  try {
+    const media=await uploadMedia();
+    await addDoc(collection(db,'feedPosts'),{authorUid:currentUser.uid,text,media,likes:[],reposts:[],replyCount:0,replyTo:null,createdAt:serverTimestamp()});
+    closeComposeModal();
+    showToast('Posted! ✨','success');
+  } catch(e){showToast('Post failed: '+e.message,'error');btn.disabled=false;btn.textContent='Post';}
+};
+
+async function uploadMedia(){
+  const results=[];
+  for (const m of pendingMedia){
+    const fd=new FormData();
+    fd.append('file',m.file);
+    fd.append('upload_preset',CLOUDINARY_PRESET);
+    const res=await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/${m.type==='video'?'video':'image'}/upload`,{method:'POST',body:fd});
+    const data=await res.json();
+    if (data.secure_url) results.push({url:data.secure_url,type:m.type});
+    else throw new Error(data.error?.message||'Upload failed');
+  }
+  return results;
+}
+
+// ── REPLY ──
+window.openReplyModal=function(postId,authorName,preview){
+  replyTargetPost=postId;
+  document.getElementById('reply-text').value='';
+  document.getElementById('reply-submit-btn').disabled=true;
+  document.getElementById('reply-char-count').textContent=MAX_CHARS;
+  document.getElementById('reply-parent-preview').innerHTML=`<span style="color:var(--muted)">Replying to </span><strong>@${esc(authorName)}</strong><div style="margin-top:4px;color:var(--muted);font-size:0.85rem">${esc(preview)}${preview.length>=60?'…':''}</div>`;
+  const av=document.getElementById('reply-compose-av');
+  const n=myProfile.displayName||myProfile.username||'?';
+  if (myProfile.avatarUrl){av.innerHTML=`<img src="${myProfile.avatarUrl}"/>`;av.style.background='';}
+  else{av.textContent=n[0].toUpperCase();av.style.background=color(myProfile.username||'x');}
+  openModal('reply-modal');
+};
+window.closeReplyModal=function(){closeModal('reply-modal');replyTargetPost=null;};
+window.updateReplyCharCount=function(){
+  const val=document.getElementById('reply-text').value;
+  const rem=MAX_CHARS-val.length;
+  const el=document.getElementById('reply-char-count');
+  el.textContent=rem;el.className='compose-char-count'+(rem<20?' warn':'')+(rem<0?' over':'');
+  document.getElementById('reply-submit-btn').disabled=!val.trim()||rem<0;
+};
+window.submitReply=async function(){
+  const text=document.getElementById('reply-text').value.trim();
+  if (!text||!replyTargetPost) return;
+  try{
+    await addDoc(collection(db,'feedPosts'),{authorUid:currentUser.uid,text,media:[],likes:[],reposts:[],replyTo:replyTargetPost,createdAt:serverTimestamp()});
+    closeReplyModal();showToast('Reply posted!','success');
+  }catch(e){showToast('Failed: '+e.message,'error');}
+};
+window.submitInlineReply=async function(postId){
+  const ta=document.getElementById('inline-reply-text');
+  const text=ta?.value.trim();if (!text) return;
+  ta.value='';document.getElementById('inline-reply-btn').disabled=true;
+  try{
+    await addDoc(collection(db,'feedPosts'),{authorUid:currentUser.uid,text,media:[],likes:[],reposts:[],replyTo:postId,createdAt:serverTimestamp()});
+    showView('post',postId);
+  }catch(e){showToast('Failed: '+e.message,'error');}
+};
+
+// ── LIKES / REPOSTS ──
+window.toggleLike=async function(postId){
+  const ref=doc(db,'feedPosts',postId);
+  const snap=await getDoc(ref);
+  if (!snap.exists()) return;
+  const likes=snap.data().likes||[];
+  const liked=likes.includes(currentUser.uid);
+  await updateDoc(ref,{likes:liked?arrayRemove(currentUser.uid):arrayUnion(currentUser.uid)});
+  // update all UI instances
+  const delta=liked?-1:1;
+  [document.getElementById('like-'+postId)].filter(Boolean).forEach(btn=>{
+    btn.classList.toggle('liked',!liked);
+    btn.querySelector('.act-icon').textContent=liked?'🤍':'❤️';
+    const c=btn.querySelector('span:last-child');if(c)c.textContent=Math.max(0,parseInt(c.textContent)+delta);
+  });
+  const dlb=document.getElementById('detail-like-btn');
+  if(dlb){dlb.classList.toggle('liked',!liked);dlb.querySelector('.act-icon').textContent=liked?'🤍':'❤️';}
+  const dlc=document.getElementById('detail-like-count');
+  if(dlc)dlc.textContent=Math.max(0,parseInt(dlc.textContent)+delta);
+  const slc=document.getElementById('lc-'+postId);
+  if(slc)slc.textContent=Math.max(0,parseInt(slc.textContent)+delta);
+};
+
+window.toggleRepost=async function(postId){
+  const ref=doc(db,'feedPosts',postId);
+  const snap=await getDoc(ref);
+  if (!snap.exists()) return;
+  const did=(snap.data().reposts||[]).includes(currentUser.uid);
+  await updateDoc(ref,{reposts:did?arrayRemove(currentUser.uid):arrayUnion(currentUser.uid)});
+  const c=document.getElementById('rp-'+postId);
+  if(c)c.textContent=Math.max(0,parseInt(c.textContent)+(did?-1:1));
+  const dc=document.getElementById('detail-rp-count');
+  if(dc)dc.textContent=Math.max(0,parseInt(dc.textContent)+(did?-1:1));
+  showToast(did?'Repost removed':'Reposted! 🔁');
+};
+
+// ── DELETE ──
+window.deletePost=async function(postId){
+  if (!confirm('Delete this post? This cannot be undone.')) return;
+  try{
+    await deleteDoc(doc(db,'feedPosts',postId));
+    showToast('Post deleted','success');
+    // Remove from DOM if on feed
+    const card=document.querySelector(`[data-post-id="${postId}"]`);
+    if (card) card.remove();
+    // If on post detail view, go back
+    if (currentView==='post') showView('home');
+  }catch(e){showToast('Delete failed: '+e.message,'error');}
+};
+
+// ── FOLLOW ──
+window.toggleFollow=async function(uid){
+  if (uid===currentUser.uid) return;
+  const amFollowing=(myFeedProfile.following||[]).includes(uid);
+  const myRef=doc(db,'feedProfiles',currentUser.uid);
+  const theirRef=doc(db,'feedProfiles',uid);
+  if (amFollowing){
+    await Promise.all([
+      setDoc(myRef,{following:arrayRemove(uid)},{merge:true}),
+      setDoc(theirRef,{followers:arrayRemove(currentUser.uid)},{merge:true})
+    ]);
+    myFeedProfile.following=(myFeedProfile.following||[]).filter(x=>x!==uid);
+    showToast('Unfollowed');
+  } else {
+    await Promise.all([
+      setDoc(myRef,{following:arrayUnion(uid)},{merge:true}),
+      setDoc(theirRef,{followers:arrayUnion(currentUser.uid)},{merge:true})
+    ]);
+    if (!myFeedProfile.following) myFeedProfile.following=[];
+    myFeedProfile.following.push(uid);
+    showToast('Now following!','success');
+  }
+  // Update all follow buttons for this uid
+  document.querySelectorAll(`[data-uid="${uid}"].follow-btn, #follow-btn`).forEach(btn=>{
+    btn.classList.toggle('following',!amFollowing);
+    btn.textContent=!amFollowing?'Following':'Follow';
+  });
+  // Invalidate profile cache so relation label refreshes next view
+  delete profileCache[currentUser.uid];
+};
+
+// ── EDIT FEED PROFILE + PRIVACY ──
+window.openEditFeedProfile=function(){
+  document.getElementById('feed-bio-input').value=myFeedProfile.feedBio||'';
+  openModal('edit-feed-profile-modal');
+};
+window.saveFeedProfile=async function(){
+  const feedBio=document.getElementById('feed-bio-input').value.trim().slice(0,200);
+  await setDoc(doc(db,'feedProfiles',currentUser.uid),{feedBio},{merge:true});
+  myFeedProfile.feedBio=feedBio;
+  if (profileCache[currentUser.uid]) profileCache[currentUser.uid].feedBio=feedBio;
+  closeModal('edit-feed-profile-modal');
+  showToast('Feed profile updated ✨','success');
+  showView('profile',currentUser.uid);
+};
+
+window.openPrivacySettings=function(){
+  // Simple inline toggle in a toast-style popup
+  const cur=myFeedProfile.likesPrivate||false;
+  const confirmed=confirm(`Your likes are currently ${cur?'PRIVATE (only you can see them)':'PUBLIC (anyone can see them)'}.
+
+Click OK to make them ${cur?'public':'private'}.`);
+  if (!confirmed) return;
+  const newVal=!cur;
+  setDoc(doc(db,'feedProfiles',currentUser.uid),{likesPrivate:newVal},{merge:true});
+  myFeedProfile.likesPrivate=newVal;
+  if (profileCache[currentUser.uid]) profileCache[currentUser.uid].likesPrivate=newVal;
+  showToast(`Likes are now ${newVal?'private':'public'}`,newVal?'':'success');
+  showView('profile',currentUser.uid);
+};
+
+// ── RIGHT SIDEBAR ──
+async function loadRightSidebar(){
+  const rc=document.getElementById('right-content');
+  if (!rc) return;
+  rc.innerHTML='<div class="widget-card"><div class="widget-title">Who to Follow</div><div id="suggestions-list"><div class="skeleton" style="height:48px;margin-bottom:8px"></div><div class="skeleton" style="height:48px"></div></div></div>';
+  const snap=await getDocs(query(collection(db,'users'),limit(15)));
+  const users=snap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(u=>u.id!==currentUser.uid&&!u.deleted&&!(myFeedProfile.following||[]).includes(u.id))
+    .slice(0,5);
+  const sl=document.getElementById('suggestions-list');
+  if (!sl) return;
+  if (!users.length){sl.innerHTML='<div style="font-size:0.82rem;color:var(--muted)">No suggestions right now.</div>';return;}
+  sl.innerHTML=users.map(u=>{
+    const n=u.displayName||u.username||'?';
+    return `<div class="suggest-item">
+      <div class="suggest-av" style="background:${color(u.username||'x')}" onclick="showView('profile','${u.id}')" style="cursor:pointer">
+        ${u.avatarUrl?`<img src="${u.avatarUrl}"/>`:n[0].toUpperCase()}
+      </div>
+      <div class="suggest-info" onclick="showView('profile','${u.id}')" style="cursor:pointer">
+        <div class="suggest-name">${esc(n)}</div>
+        <div class="suggest-handle">@${esc(u.username||'')}</div>
+      </div>
+      <button class="follow-btn" data-uid="${u.id}" onclick="toggleFollow('${u.id}')">${(myFeedProfile.following||[]).includes(u.id)?'Following':'Follow'}</button>
+    </div>`;
+  }).join('');
+}
+
+// ── SIDEBAR SEARCH (debounced) ──
+let _searchTimer;
+window.debounceSearch=function(val){
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(()=>runSidebarSearch(val),400);
+};
+async function runSidebarSearch(val){
+  if (!val.trim()){loadRightSidebar();return;}
+  const v=val.toLowerCase().replace('@','');
+  const snap=await getDocs(query(collection(db,'users'),where('username','>=',v),where('username','<=',v+'\uf8ff'),limit(6)));
+  const users=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const rc=document.getElementById('right-content');
+  if (!rc) return;
+  rc.innerHTML=`<div class="widget-card"><div class="widget-title">Search Results</div>`+(users.length?users.map(u=>{
+    const n=u.displayName||u.username||'?';
+    return `<div class="search-result-item" onclick="showView('profile','${u.id}')" style="padding:8px 0">
+      <div class="sr-av" style="background:${color(u.username)};width:36px;height:36px;font-size:0.85rem">${u.avatarUrl?`<img src="${u.avatarUrl}"/>`:n[0].toUpperCase()}</div>
+      <div><div style="font-weight:700;font-size:0.88rem">${esc(n)}</div><div style="font-size:0.76rem;color:var(--muted)">@${esc(u.username||'')}</div></div>
+    </div>`;
+  }).join(''):`<div style="font-size:0.82rem;color:var(--muted);padding:8px 0">No users found.</div>`)+`</div>`;
+}
+
+
+// ═══════════════════════════════════════════════════════
+//  REPORT SYSTEM
+// ═══════════════════════════════════════════════════════
+
+const REPORT_PRESETS = {
+  post: [
+    'Spam or ads',
+    'Hate speech',
+    'Harassment / bullying',
+    'Misinformation',
+    'Sexual content',
+    'Violence or threats',
+    'Impersonation',
+    'Other',
+  ],
+  profile: [
+    'Fake or impersonation account',
+    'Hate speech in bio',
+    'Harassment',
+    'Spam',
+    'Underage user',
+    'Other',
+  ],
+  message: [
+    'Spam or ads',
+    'Hate speech',
+    'Harassment / bullying',
+    'Sexual content',
+    'Violence or threats',
+    'Other',
+  ],
+};
+
+// context: array of {senderName, text, ts} for recent messages, or null for posts/profiles
+window.openReportModal = async function(type, id, context, label) {
+  _reportTarget = { type, id, context, label };
+  _selectedPreset = null;
+  document.getElementById('report-target-label').textContent =
+    `Reporting: ${label||id}`;
+  document.getElementById('report-custom').value = '';
+
+  // Render preset chips
+  const presetsEl = document.getElementById('report-presets');
+  presetsEl.innerHTML = (REPORT_PRESETS[type]||REPORT_PRESETS.post).map(p =>
+    `<button class="report-chip" onclick="selectReportPreset(this,'${p.replace(/'/g,"\'")}')">
+       ${p}
+     </button>`
+  ).join('');
+  openModal('report-modal');
+};
+
+window.selectReportPreset = function(btn, preset) {
+  _selectedPreset = preset;
+  document.querySelectorAll('.report-chip').forEach(c => c.classList.remove('selected'));
+  btn.classList.add('selected');
+};
+
+window.submitReport = async function() {
+  if (!_reportTarget) return;
+  const custom = document.getElementById('report-custom').value.trim();
+  if (!_selectedPreset && !custom) {
+    showToast('Please select a reason or add details', 'error'); return;
+  }
+  const btn = document.getElementById('report-submit-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  try {
+    // Fetch context: for posts grab the post + prior 4 posts in feed; for profiles just store uid
+    let contextData = _reportTarget.context || [];
+    if (_reportTarget.type === 'post' && !contextData.length) {
+      const snap = await getDoc(doc(db,'feedPosts',_reportTarget.id));
+      if (snap.exists()) {
+        const post = {id:snap.id,...snap.data()};
+        // Get up to 4 posts by same author before this one
+        let prior = [];
+        try {
+          // No orderBy with where() to avoid composite index requirement
+          const priorSnap = await getDocs(query(
+            collection(db,'feedPosts'),
+            where('authorUid','==',post.authorUid),
+            limit(20)
+          ));
+          prior = priorSnap.docs.map(d=>({id:d.id,...d.data()}))
+            .filter(p=>p.id!==snap.id)
+            .sort((a,b)=>(b.createdAt?.toMillis?.()??0)-(a.createdAt?.toMillis?.()??0))
+            .slice(0,4);
+        } catch(e) { /* non-critical */ }
+        contextData = [...prior.reverse(), {...post, isFlagged:true}].map(p=>({
+          id: p.id,
+          text: p.text||'',
+          authorUid: p.authorUid,
+          ts: p.createdAt?.toMillis?.()??0,
+          isFlagged: !!p.isFlagged,
+          media: (p.media||[]).slice(0,4),  // store actual URLs, up to 4
+        }));
+      }
+    }
+
+    await addDoc(collection(db,'reports'), {
+      type: _reportTarget.type,
+      targetId: _reportTarget.id,
+      targetLabel: _reportTarget.label||'',
+      reporterUid: currentUser.uid,
+      preset: _selectedPreset || '(custom)',
+      custom,
+      context: contextData,
+      status: 'open',
+      createdAt: serverTimestamp(),
+    });
+
+    closeModal('report-modal');
+    showToast('Report submitted. Our team will review it.', 'success');
+  } catch(e) {
+    console.error('submitReport error:', e);
+    showToast('Report failed: '+(e.code||e.message||String(e)), 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Submit Report';
+  }
+};
+
+// Allow reporting messages from DM context in the feed (future: called from detail view)
+// openReportModal('message', msgId, [{senderName,text,ts}, ...], 'message from @user')
+
+
+// ═══════════════════════════════════════════════════════
+//  DEV REPORT INBOX
+// ═══════════════════════════════════════════════════════
+
+window.openDevInbox = function() {
+  if (!isDev) { showToast('Access denied', 'error'); return; }
+  openModal('dev-inbox-modal');
+  loadDevInbox();
+};
+
+window.loadDevInbox = async function() {
+  if (!isDev) return;
+  const filter = document.getElementById('inbox-filter')?.value || 'open';
+  const body = document.getElementById('dev-inbox-body');
+  body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted)"><div class="skeleton" style="height:80px;margin-bottom:10px"></div><div class="skeleton" style="height:80px"></div></div>';
+
+  try {
+    // Build query — avoid composite index: fetch open/resolved separately if needed
+    let snap;
+    if (filter === 'all') {
+      snap = await getDocs(query(collection(db,'reports'), orderBy('createdAt','desc'), limit(50)));
+    } else {
+      // Drop orderBy to avoid needing a composite index — sort client-side
+      snap = await getDocs(query(collection(db,'reports'), where('status','==',filter), limit(80)));
+    }
+
+        const reports = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.toMillis?.()??0)-(a.createdAt?.toMillis?.()??0));
+    if (!reports.length) {
+      body.innerHTML = `<div style="padding:32px;text-align:center;color:var(--muted)">
+        <div style="font-size:2rem;margin-bottom:8px">📭</div>
+        <div>No ${filter==='all'?'':''+filter+' '}reports.</div>
+      </div>`;
+      return;
+    }
+
+    // Prefetch reporter profiles
+    const reporterUids = [...new Set(reports.map(r=>r.reporterUid).filter(Boolean))];
+    await Promise.all(reporterUids.map(u=>getProfile(u)));
+
+    body.innerHTML = reports.map(r => {
+      const reporter = profileCache[r.reporterUid]||{};
+      const reporterName = reporter.displayName||reporter.username||'Unknown';
+      const ts = r.createdAt?.toDate?.()?.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})||'';
+      const statusClass = r.status==='resolved'?'resolved':'open';
+
+      // Context messages rendering
+      let contextHtml = '';
+      if (r.context?.length) {
+        contextHtml = `<div class="inbox-context">
+          ${r.context.map(m=>{
+            const mText = m.text ? `${m.text.substring(0,120)}${m.text.length>120?'…':''}` : '';
+            const mediaHtml = Array.isArray(m.media) && m.media.length
+              ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${m.media.map(item=>{
+                  const url = typeof item==='string' ? item : (item.url||'');
+                  const type = typeof item==='object' ? (item.type||'') : '';
+                  if (!url) return '';
+                  if (type.startsWith('video')||url.match(/\.(mp4|webm|mov)$/i))
+                    return \`<video src="\${url}" style="max-height:80px;max-width:120px;border-radius:4px;object-fit:cover" controls></video>\`;
+                  return \`<img src="\${url}" style="max-height:80px;max-width:120px;border-radius:4px;object-fit:cover" onerror="this.style.display='none'"/>\`;
+                }).join('')}</div>`
+              : '';
+            const noContent = !mText && !mediaHtml;
+            return \`<div class="inbox-context-msg\${m.isFlagged?' flagged':''}">
+              <span style="color:var(--muted);font-size:0.75rem;flex-shrink:0">\${m.isFlagged?'⚠️':'◦'}</span>
+              <span style="flex:1">\${mText||''}\${mediaHtml}\${noContent?'<em style="color:var(--muted)">[no content]</em>':''}</span>
+            </div>\`;
+          }).join('')}
+        </div>`;
+      }
+
+      // Action buttons — based on type
+      const targetLink = r.type==='post'
+        ? `<button class="inbox-action-btn view" onclick="closeModal('dev-inbox-modal');showView('post','${r.targetId}')">View Post</button>`
+        : r.type==='profile'
+        ? `<button class="inbox-action-btn view" onclick="closeModal('dev-inbox-modal');showView('profile','${r.targetId}')">View Profile</button>`
+        : '';
+
+      const banButtons = r.type!=='resolved' ? `
+        <button class="inbox-action-btn warn" onclick="devInboxAction('${r.id}','${r.targetId}','warn','${r.type}')">⚠️ Warn</button>
+        <button class="inbox-action-btn temp" onclick="devInboxAction('${r.id}','${r.targetId}','temp','${r.type}')">⏳ Temp Ban</button>
+        <button class="inbox-action-btn ban"  onclick="devInboxAction('${r.id}','${r.targetId}','permanent','${r.type}')">🔨 Perm Ban</button>
+        ${r.type==='post'?`<button class="inbox-action-btn del" onclick="devInboxDeletePost('${r.id}','${r.targetId}')">🗑 Del Post</button>`:''}
+        <button class="inbox-action-btn resolve" onclick="resolveReport('${r.id}')">✓ Resolve</button>
+      ` : `<button class="inbox-action-btn resolve" onclick="reopenReport('${r.id}')" style="background:rgba(124,128,160,.15);color:var(--muted)">↺ Reopen</button>`;
+
+      return `<div class="inbox-card">
+        <div class="inbox-card-header">
+          <span class="inbox-type-badge ${r.type}">${r.type}</span>
+          <span class="inbox-status ${statusClass}">${r.status}</span>
+          <span style="font-size:0.78rem;color:var(--muted);margin-left:auto">${ts}</span>
+        </div>
+        <div style="font-size:0.85rem;margin-bottom:4px">
+          <strong>Reason:</strong> <span style="color:var(--text)">${esc(r.preset||'')}${r.custom?` — ${esc(r.custom.substring(0,80))}`:''}</span>
+        </div>
+        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">
+          Reported by <strong style="color:var(--text)">@${esc(reporterName)}</strong>
+          · Target: <strong style="color:var(--text)">${esc(r.targetLabel||r.targetId)}</strong>
+        </div>
+        ${contextHtml}
+        ${r.devNotes?`<div style="background:rgba(91,106,240,.1);border-radius:6px;padding:6px 10px;font-size:0.8rem;margin-bottom:6px">📝 ${esc(r.devNotes)}</div>`:''}
+        <div class="inbox-actions">
+          ${targetLink}
+          ${banButtons}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    body.innerHTML = `<div style="padding:24px;color:var(--error)">Error loading reports: ${esc(e.message)}</div>`;
+  }
+};
+
+// Dev takes action from inbox — needs to figure out who to ban
+// For posts: ban the post author. For profiles: ban that uid directly.
+window.devInboxAction = async function(reportId, targetId, actionType, targetType) {
+  if (!isDev) return;
+  // Need to get the uid to ban
+  let banUid = targetId;
+  if (targetType === 'post') {
+    const snap = await getDoc(doc(db,'feedPosts',targetId));
+    if (!snap.exists()) { showToast('Post not found','error'); return; }
+    banUid = snap.data().authorUid;
+  }
+  const profile = await getProfile(banUid);
+  const name = profile.displayName||profile.username||banUid;
+  openFeedBanModal(banUid, name, actionType, reportId);
+};
+
+window.devInboxDeletePost = async function(reportId, postId) {
+  if (!isDev) return;
+  if (!confirm('Delete this post?')) return;
+  try {
+    await deleteDoc(doc(db,'feedPosts',postId));
+    await updateDoc(doc(db,'reports',reportId), {status:'resolved', resolvedAt:serverTimestamp(), devNotes:'Post deleted by dev team'});
+    showToast('Post deleted', 'success');
+    loadDevInbox();
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+};
+
+window.resolveReport = async function(reportId) {
+  try {
+    await updateDoc(doc(db,'reports',reportId), {status:'resolved', resolvedAt:serverTimestamp()});
+    showToast('Marked resolved','success');
+    loadDevInbox();
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+};
+
+window.reopenReport = async function(reportId) {
+  try {
+    await updateDoc(doc(db,'reports',reportId), {status:'open'});
+    showToast('Reopened','success');
+    loadDevInbox();
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+};
+
+
+// ═══════════════════════════════════════════════════════
+//  DEV BAN (from feed — same bans collection as dashboard)
+// ═══════════════════════════════════════════════════════
+
+let _feedBanReportId = null;  // if banning from inbox, auto-resolve that report
+
+window.openFeedBanModal = function(uid, name, type, reportId) {
+  if (!isDev) { showToast('Access denied','error'); return; }
+  _feedBanTarget = { uid, type };
+  _feedBanReportId = reportId||null;
+  const titles = { warn:'⚠️ Warn User', temp:'⏳ Temporary Ban', permanent:'🔨 Permanent Ban', unban:'✓ Unban User' };
+  const descs  = {
+    warn:      `Issue a warning to <strong>${esc(name)}</strong>. Their account stays active.`,
+    temp:      `Temporarily ban <strong>${esc(name)}</strong>. Choose a date below.`,
+    permanent: `<span style="color:var(--error)">Permanently ban <strong>${esc(name)}</strong>. They will be signed out immediately.</span>`,
+    unban:     `Remove all bans from <strong>${esc(name)}</strong>.`,
+  };
+  document.getElementById('feed-ban-title').innerHTML = titles[type]||'Ban User';
+  document.getElementById('feed-ban-desc').innerHTML  = descs[type]||'';
+  document.getElementById('feed-ban-reason').value = '';
+  document.getElementById('feed-ban-temp-group').style.display = type==='temp'?'':'none';
+  const confirmBtn = document.getElementById('feed-ban-confirm');
+  confirmBtn.style.background = type==='unban'?'var(--success)':type==='warn'?'#f59e0b':'var(--error)';
+  confirmBtn.textContent = type==='unban'?'Remove Ban':type==='warn'?'Warn':'Ban';
+  openModal('feed-ban-modal');
+};
+
+window.executeFeedBan = async function() {
+  if (!isDev || !_feedBanTarget) return;
+  const { uid, type } = _feedBanTarget;
+  const reason = document.getElementById('feed-ban-reason').value.trim();
+  const btn = document.getElementById('feed-ban-confirm');
+  btn.disabled = true; btn.textContent = 'Working…';
+
+  try {
+    if (type === 'warn') {
+      await setDoc(doc(db,'bans',uid), {type:'warning', reason, issuedBy:currentUser.uid, issuedAt:serverTimestamp()});
+    } else if (type === 'temp') {
+      const until = document.getElementById('feed-ban-until').value;
+      if (!until) { showToast('Select a date','error'); btn.disabled=false; btn.textContent='Ban'; return; }
+      await setDoc(doc(db,'bans',uid), {type:'temporary', reason, until:new Date(until), issuedBy:currentUser.uid, issuedAt:serverTimestamp()});
+    } else if (type === 'permanent') {
+      await setDoc(doc(db,'bans',uid), {type:'permanent', reason, issuedBy:currentUser.uid, issuedAt:serverTimestamp()});
+    } else if (type === 'unban') {
+      await deleteDoc(doc(db,'bans',uid));
+    }
+
+    // If came from inbox, auto-resolve the report with a note
+    if (_feedBanReportId) {
+      await updateDoc(doc(db,'reports',_feedBanReportId), {
+        status: 'resolved',
+        resolvedAt: serverTimestamp(),
+        devNotes: `Action taken: ${type}${reason?' — '+reason:''}`,
+      });
+    }
+
+    closeModal('feed-ban-modal');
+    showToast(`Done — ${type==='unban'?'User unbanned':type==='warn'?'Warning issued':'User banned'}`, 'success');
+    if (_feedBanReportId) loadDevInbox();
+    _feedBanReportId = null;
+    _feedBanTarget = null;
+  } catch(e) {
+    showToast('Error: '+e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Confirm';
+  }
+};
+
+</script>
+</body>
+</html>
